@@ -6,10 +6,11 @@
 #include <algorithm>
 
 Map::Map()
-	:m_TileSize( 12 )
 {
 	m_Grid = new Grid(5, 5);
 	m_Letters = new SpriteSheet(35, "Font.png");
+	m_TileTexture = new Texture("Tile.png");
+	m_TileSize = m_TileTexture->GetWidth();
 	GenerateMapOrdered();
 }
 
@@ -17,6 +18,7 @@ Map::~Map()
 {
 	delete m_Grid;
 	delete m_Letters;
+	delete m_TileTexture;
 }
 
 void Map::Draw( Vector2f position )
@@ -25,17 +27,16 @@ void Map::Draw( Vector2f position )
 		numCols{ m_Grid->GetNumCols() },
 		numRows{ m_Grid->GetNumRows() };
 	Vector2f
-		tilePosition{ position.x, position.y },
-		letterPosition{ position.x + 1, position.y + 2 };
+		tilePosition{ position.x - m_TileSize / 2, position.y - m_TileSize / 2 },
+		letterPosition{ 
+		position.x - (m_TileSize / 2 + 1) + (m_Letters->GetSpriteWidth() / 2 - 0.5f),
+		position.y - (m_TileSize / 2) + (m_Letters->GetSpriteHeight()/2)
+	};
 	for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
 	{
 		for (int colIdx{}; colIdx < numCols; ++colIdx)
 		{
-			utils::SetColor(Color4f(1.f, 1.f, 1.f, 1.f));
-			utils::FillRect(tilePosition, m_TileSize, m_TileSize);
-			utils::SetColor(Color4f(0.f, 0.f, 0.f, 0.5f));
-			utils::DrawRect(tilePosition, m_TileSize, m_TileSize);
-
+			m_TileTexture->Draw(tilePosition);
 			m_Letters->DrawSprite(letterPosition, m_Grid->GetTile(rowIdx, colIdx));
 			tilePosition.x += m_TileSize;
 			letterPosition.x += m_TileSize;
@@ -95,6 +96,16 @@ void Map::GenerateMapOrdered()
 			m_Grid->SetTile(rowIdx, colIdx, value);
 		}
 	}
+}
+
+const float Map::GetWidth() const
+{
+	return m_TileSize * m_Grid->GetNumCols();
+}
+
+const float Map::GetHeight() const
+{
+	return m_TileSize * m_Grid->GetNumRows();
 }
 
 void Map::GenerateMapKeyboard()

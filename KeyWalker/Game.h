@@ -33,5 +33,6 @@ private:
 
 	Map* m_Map;
 	Player* m_Player;
+	Texture* m_Overlay;
 
 };

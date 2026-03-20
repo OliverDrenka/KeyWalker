@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Player.h"
 #include "utils.h"
+#include <iostream>
 
 Player::Player()
 	:Player(Vector2i (0, 0))
@@ -11,17 +12,22 @@ Player::Player(Vector2i position)
 	: m_Position{ position }
 	, m_Hp{ 3 }
 {
+	m_Texture = new Texture("Player.png");
 }
 
 Player::~Player()
 {
+	delete m_Texture;
 }
 
-void Player::Draw()
-{
-	utils::SetColor(Color4f(0.5f, 0.2f, 0.5f, 1.f));
-
-	utils::FillRect(m_Position.y * 12 + 1, m_Position.x * 12 + 1, 10, 10);
+void Player::Draw(const float tileSize) const
+{	
+	const Vector2f position
+	{
+		m_Position.y * tileSize - (tileSize / 2) + ((tileSize - m_Texture->GetWidth())/2.f),
+		m_Position.x * tileSize - (tileSize / 2) + ((tileSize - m_Texture->GetWidth()) / 2.f)
+	};
+	m_Texture->Draw(position);
 }
 
 void Player::Move(Vector2i direction)
