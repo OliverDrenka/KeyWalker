@@ -24,8 +24,8 @@ void Player::Draw(const float tileSize) const
 {	
 	const Vector2f position
 	{
-		m_Position.y * tileSize - (tileSize / 2) + ((tileSize - m_Texture->GetWidth())/2.f),
-		m_Position.x * tileSize - (tileSize / 2) + ((tileSize - m_Texture->GetWidth()) / 2.f)
+		m_Position.x * tileSize + (tileSize - m_Texture->GetWidth())/2,
+		m_Position.y * tileSize + (tileSize - m_Texture->GetWidth()) / 2
 	};
 	m_Texture->Draw(position);
 }

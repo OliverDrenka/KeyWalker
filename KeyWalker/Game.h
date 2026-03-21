@@ -2,6 +2,7 @@
 #include "BaseGame.h"
 #include "Map.h"
 #include "Player.h"
+#include "AttackManager.h"
 
 class Game : public BaseGame
 {
@@ -34,5 +35,6 @@ private:
 	Map* m_Map;
 	Player* m_Player;
 	Texture* m_Overlay;
+	AttackManager* m_AttackManager;
 
 };

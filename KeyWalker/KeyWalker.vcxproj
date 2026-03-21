@@ -160,6 +160,8 @@ xcopy "$(ProjectDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Attack.cpp" />
+    <ClCompile Include="AttackManager.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Grid.cpp" />
     <ClCompile Include="main.cpp" />
@@ -170,6 +172,8 @@ xcopy "$(ProjectDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClCompile Include="Vector2i.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Attack.h" />
+    <ClInclude Include="AttackManager.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Grid.h" />
     <ClInclude Include="Map.h" />

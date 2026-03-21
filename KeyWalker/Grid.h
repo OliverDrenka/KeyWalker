@@ -11,12 +11,12 @@ public:
 	const int GetNumRows() const;
 	const int GetSize() const;
 
-	const void SetTile(const int colIdx, const int rowIdx, const char value);
+	const void SetTile(const int colIdx, const int rowIdx, const int value);
 
 
 private:
+	int* m_Grid;
 	int m_GridSize;
-	char* m_Grid;
 	int m_Cols;
 	int m_Rows;
 };

@@ -11,7 +11,7 @@ Grid::Grid(int numCols, int numRows)
 	, m_Rows{ numRows }
 	, m_GridSize{ numRows * numCols }
 {
-	m_Grid = new char[m_GridSize]();
+	m_Grid = new int[m_GridSize]();
 }
 
 Grid::~Grid()
@@ -39,7 +39,7 @@ const int Grid::GetSize() const
 	return m_GridSize;
 }
 
-const void Grid::SetTile(const int colIdx, const int rowIdx, const char value)
+const void Grid::SetTile(const int colIdx, const int rowIdx, const int value)
 {
 	m_Grid[rowIdx * m_Cols + colIdx] = value;
 }

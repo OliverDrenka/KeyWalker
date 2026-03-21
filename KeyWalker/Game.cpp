@@ -19,6 +19,7 @@ void Game::Initialize( )
 	m_Map = new Map();
 	m_Player = new Player();
 	m_Overlay = new Texture("Overlay.png");
+	m_AttackManager = new AttackManager();
 	
 }
 
@@ -27,6 +28,7 @@ void Game::Cleanup( )
 	delete m_Map;
 	delete m_Player;
 	delete m_Overlay;
+	delete m_AttackManager;
 }
 
 void Game::Update( float elapsedSec )
@@ -41,6 +43,7 @@ void Game::Update( float elapsedSec )
 	//{
 	//	std::cout << "Left and up arrow keys are down\n";
 	//}
+	m_AttackManager->Update(elapsedSec);
 }
 
 void Game::Draw( ) const
@@ -53,9 +56,10 @@ void Game::Draw( ) const
 		glScalef(10.f, 10.f, 1.f);
 		glPushMatrix();
 		{
-			glTranslatef(- m_Map->GetWidth()/2,- m_Map->GetHeight()/2.5, 0.f );
+			glTranslatef(- m_Map->GetWidth()/2,- m_Map->GetHeight()/2, 0.f );
 			m_Map->Draw();
 			m_Player->Draw(m_Map->GetTileSize());
+			m_AttackManager->Draw();
 		}
 		glPopMatrix();
 		m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
@@ -65,7 +69,16 @@ void Game::Draw( ) const
 
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 {
-	m_Player->Move( m_Map->GetAdjecentTileDirection( m_Player->GetPosition(), e.keysym.sym - 97 ));
+	int value{ e.keysym.sym };
+	if (value >= 49 && value <= 57)
+	{
+		value -= 23;
+	}
+	else
+	{
+		value -= 97;
+	}
+	m_Player->Move( m_Map->GetAdjecentTileDirection( m_Player->GetPosition(), value ));
 }
 
 void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
@@ -106,6 +119,7 @@ void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )
 	//	std::cout << " middle button " << std::endl;
 	//	break;
 	//}
+	m_AttackManager->SpawnAlteratingAttack(2, m_Map->GetTileSize() * 2, Vector2f(0.5, 0.5), false);
 	
 }
 
