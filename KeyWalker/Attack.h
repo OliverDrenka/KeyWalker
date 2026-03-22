@@ -13,7 +13,8 @@ public:
 	void Draw() const;
 
 	const float GetLifeTime() const;
-	
+	const float GetRadius() const;
+
 	void Reset();
 
 	void SetPosition( Vector2f position );

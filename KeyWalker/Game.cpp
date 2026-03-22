@@ -43,26 +43,38 @@ void Game::Update( float elapsedSec )
 	//{
 	//	std::cout << "Left and up arrow keys are down\n";
 	//}
+	timer += elapsedSec;
+	std::cout << timer << std::endl;
+	if (timer >= 6.f) 
+	{
+		std::cout << "reached";
+		timer -= 6;
+		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+	}
 	m_AttackManager->Update(elapsedSec);
 }
 
-void Game::Draw( ) const
+void Game::Draw() const
 {
-	ClearBackground( );
+	ClearBackground();
+	Rectf viewPort = GetViewPort();
 	glPushMatrix();
 	{
-		Rectf viewPort = GetViewPort();
-		glTranslatef(viewPort.width / 2, viewPort.height / 2,0.f);
-		glScalef(10.f, 10.f, 1.f);
+		glTranslatef(viewPort.width / 2, viewPort.height / 2, 0.f);
+		glScalef(8.f, 8.f, 1.f);
+
 		glPushMatrix();
 		{
-			glTranslatef(- m_Map->GetWidth()/2,- m_Map->GetHeight()/2, 0.f );
+			glTranslatef(-m_Map->GetWidth() / 2, -m_Map->GetHeight() / 2, 0.f);
 			m_Map->Draw();
 			m_Player->Draw(m_Map->GetTileSize());
 			m_AttackManager->Draw();
 		}
 		glPopMatrix();
-		m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
+		//m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
 	}
 	glPopMatrix();
 }
@@ -97,7 +109,7 @@ void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 	//	//std::cout << "Key 1 released\n";
 	//	break;
 	//}
-}
+ }
 
 void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
 {
@@ -119,8 +131,8 @@ void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )
 	//	std::cout << " middle button " << std::endl;
 	//	break;
 	//}
-	m_AttackManager->SpawnAlteratingAttack(2, m_Map->GetTileSize() * 2, Vector2f(0.5, 0.5), false);
-	
+
+
 }
 
 void Game::ProcessMouseUpEvent( const SDL_MouseButtonEvent& e )

@@ -24,7 +24,7 @@ Attack::~Attack()
 
 void Attack::Move( float deltaTime )
 {
-	m_Position += m_Direction * deltaTime * m_Speed;
+	m_Position -= m_Direction * deltaTime * m_Speed;
 }
 
 void Attack::Update(float deltaTime)
@@ -41,6 +41,11 @@ void Attack::Draw() const
 const float Attack::GetLifeTime() const
 {
 	return m_LifeTime;
+}
+
+const float Attack::GetRadius() const
+{
+	return m_Radius;
 }
 
 void Attack::Reset()

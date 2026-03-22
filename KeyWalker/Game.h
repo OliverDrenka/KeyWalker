@@ -36,5 +36,6 @@ private:
 	Player* m_Player;
 	Texture* m_Overlay;
 	AttackManager* m_AttackManager;
+	float timer{};
 
 };

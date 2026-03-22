@@ -4,10 +4,11 @@
 #include <iostream>
 #include "utils.h"
 #include <algorithm>
+#include "utils.h"
 
 Map::Map()
 {
-	m_Grid = new Grid(11, 6);
+	m_Grid = new Grid(8, 6);
 	m_Letters = new SpriteSheet(35, "Font.png");
 	m_TileTexture = new Texture("Tile.png");
 	m_TileSize = m_TileTexture->GetWidth();
@@ -26,15 +27,15 @@ void Map::Draw( Vector2f position )
 	const int
 		numCols{ m_Grid->GetNumCols() },
 		numRows{ m_Grid->GetNumRows() };
+
 	Vector2f
-		tilePosition{ position.x - m_TileSize / 2, position.y - m_TileSize / 2 },
+	//	- m_TileSize / 2
+		tilePosition{ position.x, position.y },
 		letterPosition{ 
-		position.x - (m_TileSize / 2 + 1) + (m_Letters->GetSpriteWidth() / 2 - 0.5f),
-		position.y - (m_TileSize / 2) + (m_Letters->GetSpriteHeight()/2)
+		position.x + (m_Letters->GetSpriteWidth() / 2.f) -1.5f,
+		position.y + (m_Letters->GetSpriteHeight() / 2.f)
 	};
-	glPushMatrix();
-	{
-		glTranslatef(m_TileSize / 2, m_TileSize / 2,0.f);
+
 	for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
 	{
 		for (int colIdx{}; colIdx < numCols; ++colIdx)
@@ -50,8 +51,7 @@ void Map::Draw( Vector2f position )
 		letterPosition.x -= m_TileSize * numCols;
 
 	}
-	}
-	glPopMatrix();
+
 }
 
 const float Map::GetTileSize()

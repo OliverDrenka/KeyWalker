@@ -24,14 +24,16 @@ void Player::Draw(const float tileSize) const
 {	
 	const Vector2f position
 	{
-		m_Position.x * tileSize + (tileSize - m_Texture->GetWidth())/2,
-		m_Position.y * tileSize + (tileSize - m_Texture->GetWidth()) / 2
+		m_Position.x * tileSize + (tileSize - m_Texture->GetWidth() )/2,
+		m_Position.y * tileSize + (tileSize - m_Texture->GetWidth() ) / 2
 	};
 	m_Texture->Draw(position);
 }
 
 void Player::Move(Vector2i direction)
 {
+
+
 	m_Position.x += direction.x;
 	m_Position.y += direction.y;
 }

@@ -1,13 +1,14 @@
 #include "pch.h"
 #include "AttackManager.h"
+#include <iostream>
 
 AttackManager::AttackManager()
 {
-	m_Attacks.resize(100);
-	m_FreeSlots.reserve(100);
+	m_Attacks.resize(300);
+	m_FreeSlots.reserve(300);
 	for (int idx{ 0 }; idx < m_Attacks.size(); ++idx) {
 		m_FreeSlots.push_back(idx);
-		m_Attacks[idx].SetSpeed(45);
+		m_Attacks[idx].SetSpeed(rand()%5 + 15);
 	}
 }
 
@@ -28,7 +29,7 @@ void AttackManager::Update(const float deltaTime)
 
 		attack.Update(deltaTime);
 
-		if (attack.GetLifeTime() >= 5)
+		if (attack.GetLifeTime() >= 15)
 		{
 			attack.Deactivate();
 			m_FreeSlots.push_back(idx);
@@ -64,21 +65,42 @@ Attack* AttackManager::SpawnAttack()
 	return &attack;
 }
 
-void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, bool offSet)
+void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight, bool offSet)
 {
 	const Vector2f
-		attackDirection{ direction.Orthogonal() };
-	for (int idx{}; idx < amount; ++idx)
+		orthogonal{ direction.Orthogonal() };
+	const float
+		maxWidth{ mapWidth - 16 },
+		maxHeight{ mapHeight - 16 };
+
+	for (int idx{}; idx < amount+3; ++idx)
 	{
 		Attack* attack = SpawnAttack();
 		if (!attack)
 		{
 			return;
 		}
-		
-		const Vector2f
-			position{ attackDirection.x * idx * gapSize, attackDirection.y * idx * gapSize };
 
+
+		Vector2f offset
+		{
+			-16 * (1 + rand() % 5) * direction.x + orthogonal.x * (idx * gapSize),
+			-16 * (1 + rand() % 5) * direction.y + orthogonal.y * (idx * gapSize)
+		};
+		Vector2f center 
+		{
+			maxWidth / 2.f,
+			maxHeight / 2.f
+		};
+
+		Vector2f dir{ (direction + orthogonal).Normalized() };
+		float angle = atan2(dir.y, dir.x);
+		float x = (maxWidth) / sqrt(2.0f) * cos(angle);
+		float y = (maxHeight) / sqrt(2.0f) * sin(angle);
+		center.x += x - (16 * (rand() % 2));
+		center.y += y - (16 * (rand()%2));
+
+		Vector2f position{ center - offset };
 
 		attack->SetPosition(position);
 		attack->SetDirection(direction);

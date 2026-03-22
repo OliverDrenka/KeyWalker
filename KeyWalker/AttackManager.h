@@ -13,7 +13,7 @@ public:
 
 	Attack* SpawnAttack();
 
-	void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, bool offSet);
+	void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight , bool offSet);
 
 private:
 	std::vector<Attack> m_Attacks;
