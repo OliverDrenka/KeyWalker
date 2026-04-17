@@ -20,7 +20,7 @@ void Game::Initialize( )
 	m_Player = new Player();
 	m_Overlay = new Texture("Overlay.png");
 	m_AttackManager = new AttackManager();
-	m_Letters = new SpriteSheet(35, "Font.png");
+	m_Letters = new SpriteSheet(36, "Font.png");
 	
 }
 
@@ -99,9 +99,10 @@ void Game::Draw() const
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 {
 	int value{ e.keysym.sym };
-	if (value >= 49 && value <= 57)
+	std::cout << value << ", " << char(value) << std::endl;
+	if (value >= 48 && value <= 57)
 	{
-		value -= 23;
+		value -= 22;
 	}
 	else
 	{

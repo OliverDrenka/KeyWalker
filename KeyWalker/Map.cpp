@@ -9,7 +9,7 @@
 Map::Map()
 {
 	m_Grid = new Grid(12, 8);
-	m_Letters = new SpriteSheet(35, "Font.png");
+	m_Letters = new SpriteSheet(36, "Font.png");
 	m_TileTexture = new Texture("Tile.png");
 	m_TileSize = m_TileTexture->GetWidth();
 	GenerateMapOrdered();
@@ -96,8 +96,8 @@ void Map::GenerateMapOrdered()
 	{
 		for (int colIdx{}; colIdx < numCols; ++colIdx)
 		{
-			const char
-				value{ static_cast<char>( (rowIdx * numCols + colIdx) %35) };
+			const int
+				value{ (rowIdx * numCols + colIdx) % 36 };
 			m_Grid->SetTile(colIdx, rowIdx, value);
 		}
 	}
