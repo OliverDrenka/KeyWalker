@@ -11,6 +11,7 @@ Player::Player()
 Player::Player(Vector2i position)
 	: m_Position{ position }
 	, m_Hp{ 3 }
+	, m_Radius{ 5.f }
 {
 	m_Texture = new Texture("Player.png");
 }
@@ -38,19 +39,29 @@ void Player::Move(Vector2i direction)
 	m_Position.y += direction.y;
 }
 
+void Player::Hit(const float damage)
+{
+	m_Hp -= damage;
+}
+
+const int Player::GetHp() const
+{
+	return m_Hp;
+}
+
 const Vector2i Player::GetPosition()
 {
 	return m_Position;
 }
 
-const Rectf Player::GetBounds()
+const Circlef Player::GetBounds(const float tileSize)
 {
-	Rectf bounds
+	Circlef bounds
 	{
-		static_cast<float>(m_Position.x),
-		static_cast<float>(m_Position.y),
-		10.f,
-		10.f
+		static_cast<float>(m_Position.x) * tileSize,
+		static_cast<float>(m_Position.y) * tileSize,
+		m_Radius
 	};
+
 	return bounds;
 }

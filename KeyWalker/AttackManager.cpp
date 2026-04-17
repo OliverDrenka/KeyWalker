@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "AttackManager.h"
 #include <iostream>
+#include "utils.h"
 
 AttackManager::AttackManager()
 {
@@ -29,7 +30,7 @@ void AttackManager::Update(const float deltaTime)
 
 		attack.Update(deltaTime);
 
-		if (attack.GetLifeTime() >= 15)
+		if (attack.GetLifeTime() >= 25)
 		{
 			attack.Deactivate();
 			m_FreeSlots.push_back(idx);
@@ -98,11 +99,35 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 		float x = (maxWidth) / sqrt(2.0f) * cos(angle);
 		float y = (maxHeight) / sqrt(2.0f) * sin(angle);
 		center.x += x - (16 * (rand() % 2));
-		center.y += y - (16 * (rand()%2));
+		center.y += y - (16 * (rand() % 2));
 
 		Vector2f position{ center - offset };
 
 		attack->SetPosition(position);
 		attack->SetDirection(direction);
 	}
+}
+
+const bool AttackManager::isColliding(Circlef collider)
+{
+	for (Attack& attack : m_Attacks)
+	{
+		if (attack.IsActive())
+		{
+			const Vector2f
+				centerDistance(attack.GetPosition() - collider.center);
+			const float
+				radiusTotal(attack.GetRadius() + collider.radius);
+			if (centerDistance.Length() <= radiusTotal)
+			{
+				attack.SetDirection(attack.GetDirection() * -1);
+				const float
+					overlap{ radiusTotal - centerDistance.Length()};
+				attack.SetPosition(attack.GetPosition() - overlap * attack.GetDirection());
+				return true;
+			}
+
+		}
+	}
+	return false;
 }

@@ -20,6 +20,7 @@ void Game::Initialize( )
 	m_Player = new Player();
 	m_Overlay = new Texture("Overlay.png");
 	m_AttackManager = new AttackManager();
+	m_Letters = new SpriteSheet(35, "Font.png");
 	
 }
 
@@ -29,6 +30,7 @@ void Game::Cleanup( )
 	delete m_Player;
 	delete m_Overlay;
 	delete m_AttackManager;
+	delete m_Letters;
 }
 
 void Game::Update( float elapsedSec )
@@ -43,24 +45,32 @@ void Game::Update( float elapsedSec )
 	//{
 	//	std::cout << "Left and up arrow keys are down\n";
 	//}
-	timer += elapsedSec;
-	std::cout << timer << std::endl;
-	if (timer >= 6.f) 
+	if (m_Player->GetHp() > 0)
 	{
-		std::cout << "reached";
-		timer -= 6;
-		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-		m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+
+		m_AttackTimer += elapsedSec;
+		m_TotalTime += elapsedSec;
+		if (m_AttackTimer >= 6.f) 
+		{
+			m_AttackTimer -= 6;
+			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+		}
+		m_AttackManager->Update(elapsedSec);
+		if (m_AttackManager->isColliding(m_Player->GetBounds(m_Map->GetTileSize())))
+		{
+			m_Player->Hit(1);
+		}
 	}
-	m_AttackManager->Update(elapsedSec);
 }
 
 void Game::Draw() const
 {
 	ClearBackground();
 	Rectf viewPort = GetViewPort();
+
 	glPushMatrix();
 	{
 		glTranslatef(viewPort.width / 2, viewPort.height / 2, 0.f);
@@ -75,6 +85,12 @@ void Game::Draw() const
 		}
 		glPopMatrix();
 		//m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
+		const int
+			playerHp{ m_Player->GetHp() };
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 10.f), 25 + playerHp);
+
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 26.f), 25 + static_cast<int>(m_TotalTime) % 10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 23.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
 	}
 	glPopMatrix();
 }

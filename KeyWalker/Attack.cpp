@@ -12,9 +12,9 @@ Attack::Attack(Vector2f position, float speed, float scale)
 	, m_Scale { scale }
 	, m_LifeTime { 0 }
 	, m_Active { false }
+	, m_Radius { 8.f }
 {
 	m_Texture = new Texture("BallAttack.png");
-	m_Radius = m_Texture->GetWidth() / 2;
 }
 
 Attack::~Attack()
@@ -48,6 +48,16 @@ const float Attack::GetRadius() const
 	return m_Radius;
 }
 
+const Vector2f Attack::GetPosition() const
+{
+	return m_Position;
+}
+
+const Vector2f Attack::GetDirection() const
+{
+	return m_Direction;
+}
+
 void Attack::Reset()
 {
 	m_LifeTime = 0.f;
@@ -63,11 +73,6 @@ void Attack::SetPosition(Vector2f position)
 void Attack::SetDirection(Vector2f direction)
 {
 	m_Direction = direction;
-}
-
-void Attack::SetRadius(float radius)
-{
-	m_Radius = radius;
 }
 
 void Attack::SetSpeed(float speed)

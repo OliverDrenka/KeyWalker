@@ -14,6 +14,8 @@ public:
 
 	const float GetLifeTime() const;
 	const float GetRadius() const;
+	const Vector2f GetPosition() const;
+	const Vector2f GetDirection() const;
 
 	void Reset();
 
@@ -34,7 +36,7 @@ private:
 	Vector2f m_Position;
 	Vector2f m_Direction;
 	float m_Speed;
-	float m_Radius;
+	const float m_Radius;
 	float m_Scale;
 	float m_LifeTime;
 	bool m_Active;

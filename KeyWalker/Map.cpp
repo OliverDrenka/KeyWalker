@@ -8,7 +8,7 @@
 
 Map::Map()
 {
-	m_Grid = new Grid(8, 6);
+	m_Grid = new Grid(12, 8);
 	m_Letters = new SpriteSheet(35, "Font.png");
 	m_TileTexture = new Texture("Tile.png");
 	m_TileSize = m_TileTexture->GetWidth();

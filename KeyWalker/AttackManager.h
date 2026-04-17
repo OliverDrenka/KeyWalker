@@ -15,6 +15,8 @@ public:
 
 	void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight , bool offSet);
 
+	const bool isColliding(Circlef collider);
+
 private:
 	std::vector<Attack> m_Attacks;
 	std::vector<int> m_FreeSlots;
