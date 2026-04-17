@@ -89,8 +89,9 @@ void Game::Draw() const
 			playerHp{ m_Player->GetHp() };
 		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 10.f), 25 + playerHp);
 
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 26.f), 25 + static_cast<int>(m_TotalTime) % 10);
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 23.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 9.f, m_Map->GetHeight() / 2 - 26.f), 25 + static_cast<int>(m_TotalTime) % 10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 19.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 29.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
 	}
 	glPopMatrix();
 }
