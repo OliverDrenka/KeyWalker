@@ -19,6 +19,7 @@ void Game::Initialize( )
 	
 	m_pFont = TTF_OpenFont("BoldPixels.ttf", 16);
 	m_pRestartText = new Texture("Press R to Restart", m_pFont, Color4f(0.f,0.f,0.f,1.f));
+	m_pStartText = new Texture("Press S to Start", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pPauseText = new Texture("Press ESC to Unpause", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pScoreText = new Texture("Score:", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pTimeText = new Texture("Time:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
@@ -66,6 +67,7 @@ void Game::Cleanup( )
 	
 	delete m_pRestartText;
 	delete m_pPauseText;
+	delete m_pStartText;
 	delete m_pScoreText;
 	delete m_pTimeText;
 	delete m_pHpText;
@@ -186,6 +188,9 @@ void Game::Draw() const
 	{
 		case GameState::start:
 		{
+			utils::SetColor(Color4f(0.3f, 0.3f, 0.3f, 0.6f));
+			utils::FillRect(-250, -250, 500, 500);
+			m_pStartText->Draw(Vector2f(-m_pStartText->GetWidth() / 2, -m_pStartText->GetHeight() / 2));
 			break;
 		}
 		case GameState::gameplay:
@@ -217,7 +222,11 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 	{
 		case GameState::start:
 		{
-			break;
+			if (e.keysym.sym == 115)
+			{
+				m_GameState = GameState::gameplay;
+				break;
+			}
 		}
 		case GameState::gameplay:
 		{

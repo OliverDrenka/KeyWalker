@@ -48,6 +48,7 @@ private:
     SpriteSheet* m_pLetters;
 
 	TTF_Font* m_pFont;
+	Texture* m_pStartText;
 	Texture* m_pRestartText;
 	Texture* m_pPauseText;
 	Texture* m_pScoreText;
@@ -67,7 +68,7 @@ private:
     SoundEffect* m_pSoundPointSpawn;
     SoundEffect* m_pSoundPointCollected;
 
-	GameState m_GameState{ GameState::gameplay };
+	GameState m_GameState{ GameState::start };
 
 
 
