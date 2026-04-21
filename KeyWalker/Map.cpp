@@ -12,7 +12,7 @@ Map::Map()
 	m_Letters = new SpriteSheet(36, "Font.png");
 	m_TileTexture = new Texture("Tile.png");
 	m_TileSize = m_TileTexture->GetWidth();
-	GenerateMapOrdered();
+	GenerateMapRandom();
 }
 
 Map::~Map()
@@ -121,4 +121,26 @@ void Map::GenerateMapKeyboard()
 
 void Map::GenerateMapRandom()
 {
+	const int
+		numCols{ m_Grid->GetNumCols() },
+		numRows{ m_Grid->GetNumRows() };
+	for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
+	{
+		for (int colIdx{}; colIdx < numCols; ++colIdx)
+		{
+			int
+				value{ rand() % 36 };
+			const Vector2i
+				position{ colIdx, rowIdx };
+			while (GetAdjecentTileDirection(position, value) != Vector2i(0, 0))
+			{
+				value += 1;
+				if (value >= 36)
+				{
+					value = 0;
+				}
+			}
+			m_Grid->SetTile(colIdx, rowIdx, value);
+		}
+	}
 }

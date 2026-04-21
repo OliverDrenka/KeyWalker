@@ -11,3 +11,8 @@ Vector2i::Vector2i(int x, int y)
 	,y{ y }
 {
 }
+
+bool Vector2i::operator!=(const Vector2i& rhs) const
+{
+	return this->x != rhs.x || this->y != rhs.y;
+}

@@ -87,11 +87,11 @@ void Game::Draw() const
 		//m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
 		const int
 			playerHp{ m_Player->GetHp() };
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 10.f), 25 + playerHp);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 13.f, m_Map->GetHeight() / 2 - 10.f), 26 + playerHp);
 
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 9.f, m_Map->GetHeight() / 2 - 26.f), 25 + static_cast<int>(m_TotalTime) % 10);
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 19.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
-		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 29.f, m_Map->GetHeight() / 2 - 26.f), 25 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 9.f, m_Map->GetHeight() / 2 - 26.f), 26 + static_cast<int>(m_TotalTime) % 10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 19.f, m_Map->GetHeight() / 2 - 26.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
+		m_Letters->DrawSprite(Vector2f(- m_Map->GetWidth()/2 - 29.f, m_Map->GetHeight() / 2 - 26.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
 	}
 	glPopMatrix();
 }
@@ -99,7 +99,6 @@ void Game::Draw() const
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 {
 	int value{ e.keysym.sym };
-	std::cout << value << ", " << char(value) << std::endl;
 	if (value >= 48 && value <= 57)
 	{
 		value -= 22;
