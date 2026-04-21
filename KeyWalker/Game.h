@@ -49,6 +49,10 @@ private:
 	float m_TotalTime{};
 	SpriteSheet* m_Letters;
 
+	int m_Score{};
+	
+	bool m_PointsSpawned{ false };
+
 	SoundEffect* m_SoundButtonPress;
 	SoundEffect* m_SoundHit;
 	SoundEffect* m_SoundPointSpawn;

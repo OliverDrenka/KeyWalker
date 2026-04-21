@@ -171,6 +171,7 @@ xcopy "$(ProjectDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="SpriteSheet.cpp" />
+    <ClCompile Include="Tile.cpp" />
     <ClCompile Include="Vector2i.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -182,6 +183,7 @@ xcopy "$(ProjectDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClInclude Include="pch.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="SpriteSheet.h" />
+    <ClInclude Include="Tile.h" />
     <ClInclude Include="Vector2i.h" />
   </ItemGroup>
   <!-- Import the custom .targets file -->

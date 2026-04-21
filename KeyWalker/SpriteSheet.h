@@ -5,10 +5,10 @@ class SpriteSheet
 {
 public:
 	SpriteSheet();
-	SpriteSheet(const int totalSprites, std::string spriteSheetPath);
+	SpriteSheet(const int totalSprites, std::string spriteSheetPath, const int numRows = 1 );
 	~SpriteSheet();
 
-	void DrawSprite( Vector2f position, int spriteIdx );
+	void DrawSprite(Vector2f position, int spriteIdx, int row = 0);
 
 	const float GetSpriteHeight();
 	const float GetSpriteWidth();
@@ -16,7 +16,9 @@ public:
 private:
 	Texture* m_SpriteSheet;
 	const int m_TotalSprites;
+	const int m_Rows;
 	float m_SpriteWidth;
+	float m_SpriteHeight;
 
 };
 

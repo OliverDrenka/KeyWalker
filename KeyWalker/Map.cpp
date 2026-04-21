@@ -4,12 +4,12 @@
 #include <iostream>
 #include "utils.h"
 #include <algorithm>
-#include "utils.h"
+
 
 Map::Map()
 {
     m_Grid = new Grid(10, 6);
-    m_Letters = new SpriteSheet(36, "Font.png");
+    m_Letters = new SpriteSheet(36, "Font.png", 3);
     m_TileTexture = new Texture("Tile.png");
     m_TileSize = m_TileTexture->GetWidth();
     m_IsHexMode = false;
@@ -21,7 +21,6 @@ Map::~Map()
 	delete m_Grid;
 	delete m_Letters;
 	delete m_TileTexture;
-	m_PointTiles.clear();
 }
 
 void Map::SetHexMode(bool hex)
@@ -51,7 +50,7 @@ void Map::Draw( Vector2f position )
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
                 m_TileTexture->Draw(tilePosition);
-                m_Letters->DrawSprite(letterPosition, m_Grid->GetTile(colIdx, rowIdx));
+                m_Letters->DrawSprite(letterPosition, m_Grid->GetTileValue(colIdx, rowIdx), static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
                 tilePosition.x += m_TileSize;
                 letterPosition.x += m_TileSize;
             }
@@ -77,7 +76,9 @@ void Map::Draw( Vector2f position )
 							 y + (m_Letters->GetSpriteHeight() / 2.f) };
 
 				m_TileTexture->Draw(tp);
-				m_Letters->DrawSprite(lp, m_Grid->GetTile(colIdx, rowIdx));
+				m_Letters->DrawSprite(lp,
+					m_Grid->GetTileValue(colIdx, rowIdx),
+					static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
 			}
 		}
     }
@@ -96,13 +97,13 @@ const Vector2i Map::GetAdjecentTileDirection( Vector2i position, int value )
 
     if (!m_IsHexMode)
     {
-        int tile = m_Grid->GetTile(std::min(position.x + 1, totalCols - 1), position.y);
+        int tile = m_Grid->GetTileValue(std::min(position.x + 1, totalCols - 1), position.y);
         if (position.x + 1 < totalCols && tile == value) return Vector2i(1, 0);
-        tile = m_Grid->GetTile(position.x, std::min(position.y + 1, totalRows - 1));
+        tile = m_Grid->GetTileValue(position.x, std::min(position.y + 1, totalRows - 1));
         if (position.y + 1 < totalRows && tile == value) return Vector2i(0, 1);
-        tile = m_Grid->GetTile(std::max(position.x - 1, 0), position.y);
+        tile = m_Grid->GetTileValue(std::max(position.x - 1, 0), position.y);
         if (position.x - 1 >= 0 && tile == value) return Vector2i(-1, 0);
-        tile = m_Grid->GetTile(position.x, std::max(position.y - 1, 0));
+        tile = m_Grid->GetTileValue(position.x, std::max(position.y - 1, 0));
         if (position.y - 1 >= 0 && tile == value) return Vector2i(0, -1);
         return Vector2i(0, 0);
     }
@@ -113,37 +114,55 @@ const Vector2i Map::GetAdjecentTileDirection( Vector2i position, int value )
     const int row = position.y;
 
     // East
-    if (col + 1 < totalCols && m_Grid->GetTile(col + 1, row) == value) return Vector2i(1, 0);
+    if (col + 1 < totalCols && m_Grid->GetTileValue(col + 1, row) == value) return Vector2i(1, 0);
     // West
-    if (col - 1 >= 0 && m_Grid->GetTile(col - 1, row) == value) return Vector2i(-1, 0);
+    if (col - 1 >= 0 && m_Grid->GetTileValue(col - 1, row) == value) return Vector2i(-1, 0);
 
     bool odd = (row & 1) != 0;
     // NE
     if (row - 1 >= 0)
     {
         int nc = odd ? col + 1 : col;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTile(nc, row - 1) == value) return Vector2i(nc - col, -1);
+        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row - 1) == value) return Vector2i(nc - col, -1);
     }
     // NW
     if (row - 1 >= 0)
     {
         int nc = odd ? col : col - 1;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTile(nc, row - 1) == value) return Vector2i(nc - col, -1);
+        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row - 1) == value) return Vector2i(nc - col, -1);
     }
     // SE
     if (row + 1 < totalRows)
     {
         int nc = odd ? col + 1 : col;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTile(nc, row + 1) == value) return Vector2i(nc - col, 1);
+        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row + 1) == value) return Vector2i(nc - col, 1);
     }
     // SW
     if (row + 1 < totalRows)
     {
         int nc = odd ? col : col - 1;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTile(nc, row + 1) == value) return Vector2i(nc - col, 1);
+        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row + 1) == value) return Vector2i(nc - col, 1);
     }
 
     return Vector2i(0, 0);
+}
+
+void Map::CreateRandomPointTile()
+{
+	const int
+		x {rand() % m_Grid->GetNumCols()},
+		y {rand() % m_Grid->GetNumRows()};
+	m_Grid->SetTileState(x, y, Tile::State::point);
+}
+
+void Map::RemoveTileModifier(const Vector2i position)
+{
+	m_Grid->SetTileState(position.x, position.y, Tile::State::normal);
+}
+
+const Tile::State Map::GetTileState(Vector2i position) const
+{
+	return m_Grid->GetTileState(position.x, position.y);
 }
 
 void Map::RandomizeTile(const Vector2i& position)
@@ -168,7 +187,7 @@ void Map::RandomizeTile(const Vector2i& position)
 					int ny = position.y + dy[i];
 					if (nx >= 0 && nx < cols && ny >= 0 && ny < rows)
 					{
-						if (m_Grid->GetTile(nx, ny) == v) return false;
+						if (m_Grid->GetTileValue(nx, ny) == v) return false;
 					}
 				}
 
@@ -188,7 +207,7 @@ void Map::RandomizeTile(const Vector2i& position)
 
 						if (nnx >= 0 && nnx < cols && nny >= 0 && nny < rows)
 						{
-							if (m_Grid->GetTile(nnx, nny) == v) return false;
+							if (m_Grid->GetTileValue(nnx, nny) == v) return false;
 						}
 					}
 				}
@@ -206,7 +225,7 @@ void Map::RandomizeTile(const Vector2i& position)
 
 			auto Check = [&](int x, int y)
 				{
-					return IsInside(x, y) && m_Grid->GetTile(x, y) == v;
+					return IsInside(x, y) && m_Grid->GetTileValue(x, y) == v;
 				};
 
 			bool odd = (row & 1) != 0;
@@ -254,7 +273,7 @@ void Map::RandomizeTile(const Vector2i& position)
 					int dist = abs(dx) + abs(dy);
 					if (dist > 3) continue;
 
-					if (m_Grid->GetTile(cx, cy) == v) return false;
+					if (m_Grid->GetTileValue(cx, cy) == v) return false;
 				}
 			}
 

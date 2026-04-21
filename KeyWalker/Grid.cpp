@@ -11,7 +11,7 @@ Grid::Grid(int numCols, int numRows)
 	, m_Rows{ numRows }
 	, m_GridSize{ numRows * numCols }
 {
-	m_Grid = new int[m_GridSize]();
+	m_Grid = new Tile[m_GridSize]();
 }
 
 Grid::~Grid()
@@ -19,9 +19,9 @@ Grid::~Grid()
 	delete[] m_Grid;
 }
 
-const int Grid::GetTile( const int colIdx, const int rowIdx ) const
+const int Grid::GetTileValue( const int colIdx, const int rowIdx ) const
 {
-	return m_Grid[rowIdx * m_Cols + colIdx];
+	return m_Grid[rowIdx * m_Cols + colIdx].GetValue();
 }
 
 const int Grid::GetNumCols() const
@@ -41,5 +41,18 @@ const int Grid::GetSize() const
 
 const void Grid::SetTile(const int colIdx, const int rowIdx, const int value)
 {
-	m_Grid[rowIdx * m_Cols + colIdx] = value;
+	m_Grid[rowIdx * m_Cols + colIdx].SetValue(value);
 }
+
+void Grid::SetTileState(const int colIdx, const int rowIdx, const Tile::State state)
+{
+	m_Grid[rowIdx * m_Cols + colIdx].SetState(state);
+
+}
+
+const Tile::State Grid::GetTileState(const int colIdx, const int rowIdx) const
+{
+	return m_Grid[rowIdx * m_Cols + colIdx].GetState();
+}
+
+

@@ -21,6 +21,10 @@ public:
 	const float GetHeight() const;
 	const Vector2i GetAdjecentTileDirection( Vector2i position, int value );
 	
+	void CreateRandomPointTile();
+	void RemoveTileModifier(const Vector2i position);
+	const Tile::State GetTileState(Vector2i position) const;
+
 	void RandomizeTile(const Vector2i& position);
 
 	void GenerateMapOrdered();
@@ -35,8 +39,6 @@ private:
 	float m_TileSize;
 
     bool m_IsHexMode;
-
-    std::vector<Vector2i> m_PointTiles;
 
 };
 

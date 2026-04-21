@@ -20,7 +20,7 @@ void Game::Initialize( )
 	m_Player = new Player();
 	m_Overlay = new Texture("Overlay.png");
 	m_AttackManager = new AttackManager();
-	m_Letters = new SpriteSheet(36, "Font.png");
+	m_Letters = new SpriteSheet(36, "Font.png", 3);
 
 	m_SoundButtonPress = new SoundEffect("ButtonPress.wav");
 	m_SoundHit = new SoundEffect("Hit.wav");
@@ -29,8 +29,11 @@ void Game::Initialize( )
 
 	m_SoundButtonPress->SetVolume(50);
 	m_SoundHit->SetVolume(40);
+	m_SoundPointCollected->SetVolume(25);
 
 	m_Map->SetHexMode(true);
+
+
 	
 }
 
@@ -72,11 +75,18 @@ void Game::Update( float elapsedSec )
 			m_TotalTime += elapsedSec;
 			if (m_AttackTimer >= 6.f) 
 			{
-				m_AttackTimer -= 6;
+				m_AttackTimer -= 10;
 				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
 				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
 				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
 				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+			
+			}
+			if (m_TotalTime > 6.f && !m_PointsSpawned)
+			{
+				m_PointsSpawned = true;
+				m_Map->CreateRandomPointTile();
+				m_Map->CreateRandomPointTile();
 			}
 			m_AttackManager->Update(elapsedSec);
 			m_Player->Update(elapsedSec);
@@ -153,6 +163,13 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 	{
 		m_SoundButtonPress->Play(0);
 		m_Player->Move(movement);
+	}
+	if (m_Map->GetTileState(m_Player->GetPosition()) == Tile::State::point)
+	{
+		m_Score += 1;
+		m_SoundPointCollected->Play(0);
+		m_Map->RemoveTileModifier(m_Player->GetPosition());
+		m_Map->CreateRandomPointTile();
 	}
 }
 
