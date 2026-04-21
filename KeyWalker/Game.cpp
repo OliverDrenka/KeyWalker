@@ -32,6 +32,7 @@ void Game::Initialize( )
 	m_SoundPointCollected->SetVolume(25);
 
 	m_Map->SetHexMode(true);
+	m_Map->GenerateMapRandom();
 
 
 	

@@ -13,7 +13,6 @@ Map::Map()
     m_TileTexture = new Texture("Tile.png");
     m_TileSize = m_TileTexture->GetWidth();
     m_IsHexMode = false;
-    GenerateMapRandom();
 }
 
 Map::~Map()
