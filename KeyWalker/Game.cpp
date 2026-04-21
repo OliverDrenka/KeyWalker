@@ -20,9 +20,9 @@ void Game::Initialize( )
 	m_pFont = TTF_OpenFont("BoldPixels.ttf", 16);
 	m_pRestartText = new Texture("Press R to Restart", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pPauseText = new Texture("Press ESC to Unpause", m_pFont, Color4f(0.f,0.f,0.f,1.f));
-	m_pScoreText = new Texture("Score", m_pFont, Color4f(0.f,0.f,0.f,1.f));
-	m_pTimeText = new Texture("Time", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
-	m_pHpText = new Texture("Hp", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+	m_pScoreText = new Texture("Score:", m_pFont, Color4f(0.f,0.f,0.f,1.f));
+	m_pTimeText = new Texture("Time:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+	m_pHpText = new Texture("Hp:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 	
     m_pMap = new Map();
     m_pPlayer = new Player();
@@ -157,21 +157,23 @@ void Game::Draw() const
 		//m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
         const int
             playerHp{ m_pPlayer->GetHp() };
-		const float y{ m_pMap->GetHeight() / 2 };
+		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight()};
 
-		m_pHpText->Draw(Vector2f(-m_pMap->GetWidth() / 2, y));
-        m_pLetters->DrawSprite(Vector2f(-m_pMap->GetWidth() / 2 + 17.f, y + 3.f), 26 + playerHp);
+		glScalef(0.8f, 0.8f, 1.f);
+
+		m_pHpText->Draw(Vector2f(-m_pMap->GetWidth() / 2 - m_pHpText->GetWidth(), y));
+        m_pLetters->DrawSprite(Vector2f(-m_pMap->GetWidth() / 2, y + 3.f), 26 + playerHp);
 
 		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30.f, y));
-		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 27.f, y + 3.f), 26 + static_cast<int>(m_Score) % 10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 17.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 10)/10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 7.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 100)/100);
+		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f, y + 3.f), 26 + static_cast<int>(m_Score) % 10);
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 10)/10);
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 100)/100);
 		
        
-		m_pTimeText->Draw(Vector2f(m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 45.f, y));
-		m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 9.f, y + 3.f), 26 + static_cast<int>(m_TotalTime) % 10);
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 19.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 29.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
+		m_pTimeText->Draw(Vector2f(m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, y));
+		m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 10.f, y + 3.f), 26 + static_cast<int>(m_TotalTime) % 10);
+        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
+        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
 		
 
 	}
