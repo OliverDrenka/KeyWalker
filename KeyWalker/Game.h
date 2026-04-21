@@ -41,22 +41,30 @@ private:
 		end
 	};
 
-	Map* m_Map;
-	Player* m_Player;
-	Texture* m_Overlay;
-	AttackManager* m_AttackManager;
-	float m_AttackTimer{};
-	float m_TotalTime{};
-	SpriteSheet* m_Letters;
+    Map* m_pMap;
+    Player* m_pPlayer;
+    Texture* m_pOverlay;
+    AttackManager* m_pAttackManager;
+    SpriteSheet* m_pLetters;
 
-	int m_Score{};
+	TTF_Font* m_pFont;
+	Texture* m_pRestartText;
+	Texture* m_pPauseText;
+	Texture* m_pScoreText;
+	Texture* m_pTimeText;
+	Texture* m_pHpText;
+
+
+	float m_AttackTimer;
+	float m_TotalTime;
+	int m_Score;
 	
-	bool m_PointsSpawned{ false };
+	bool m_PointsSpawned;
 
-	SoundEffect* m_SoundButtonPress;
-	SoundEffect* m_SoundHit;
-	SoundEffect* m_SoundPointSpawn;
-	SoundEffect* m_SoundPointCollected;
+    SoundEffect* m_pSoundButtonPress;
+    SoundEffect* m_pSoundHit;
+    SoundEffect* m_pSoundPointSpawn;
+    SoundEffect* m_pSoundPointCollected;
 
 	GameState m_GameState{ GameState::gameplay };
 

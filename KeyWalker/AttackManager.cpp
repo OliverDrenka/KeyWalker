@@ -85,8 +85,8 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 
 		Vector2f offset
 		{
-			-16 * (1 + rand() % 5) * direction.x + orthogonal.x * (idx * gapSize),
-			-16 * (1 + rand() % 5) * direction.y + orthogonal.y * (idx * gapSize)
+			-16 * (3 + rand() % 5) * direction.x + orthogonal.x * (idx * gapSize),
+			-16 * (3 + rand() % 5) * direction.y + orthogonal.y * (idx * gapSize)
 		};
 		Vector2f center 
 		{

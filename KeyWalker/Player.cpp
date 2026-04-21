@@ -16,7 +16,7 @@ Player::Player(Vector2i position)
 	, m_FrameTimer{ 0.f }
 	, m_TimePerFrame{ 0.1f }
 {
-	m_SpriteSheet = new SpriteSheet(4, "Player.png");
+	m_SpriteSheet = new SpriteSheet(4, "Player.png", 3);
 }
 
 Player::~Player()
@@ -31,7 +31,7 @@ void Player::Draw(const float tileSize, bool hexMode) const
         // For square grid, m_Position represents tile coords; compute center and draw sprite centered
         Vector2f center{ m_Position.x * tileSize + tileSize * 0.5f, m_Position.y * tileSize + tileSize * 0.5f };
         Vector2f drawPos{ center.x - m_SpriteSheet->GetSpriteWidth() * 0.5f, center.y - m_SpriteSheet->GetSpriteHeight() * 0.5f };
-        m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx);
+        m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx, std::max(m_Hp - 1, 0));
     }
     else
     {
@@ -46,12 +46,12 @@ void Player::Draw(const float tileSize, bool hexMode) const
 			y + (tileSize - m_SpriteSheet->GetSpriteHeight()) / 2
 		};
 
-		m_SpriteSheet->DrawSprite(position, m_SpriteIdx);
+		m_SpriteSheet->DrawSprite(position, m_SpriteIdx, std::max(m_Hp - 1,0));
     }
 }
 void Player::Update(const float deltaTime)
 {
-	if (m_SpriteIdx != 0)
+	if ((m_SpriteIdx != 0 && m_Hp > 0) || (m_Hp <= 0 && m_SpriteIdx != 3))
 	{
 		m_FrameTimer += deltaTime;
 		if (m_FrameTimer >= m_TimePerFrame)

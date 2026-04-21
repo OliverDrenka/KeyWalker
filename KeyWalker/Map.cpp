@@ -148,10 +148,18 @@ const Vector2i Map::GetAdjecentTileDirection( Vector2i position, int value )
 
 void Map::CreateRandomPointTile()
 {
-	const int
+	int
 		x {rand() % m_Grid->GetNumCols()},
 		y {rand() % m_Grid->GetNumRows()};
-	m_Grid->SetTileState(x, y, Tile::State::point);
+	if (m_Grid->GetTileState(x, y) == Tile::State::normal)
+	{
+		m_Grid->SetTileState(x, y, Tile::State::point);
+	} 
+	else
+	{
+		CreateRandomPointTile();
+	}
+
 }
 
 void Map::RemoveTileModifier(const Vector2i position)
