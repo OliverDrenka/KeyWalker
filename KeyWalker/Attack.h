@@ -16,6 +16,7 @@ public:
 	const float GetRadius() const;
 	const Vector2f GetPosition() const;
 	const Vector2f GetDirection() const;
+	const float GetSpeed() const;
 
 	void Reset();
 

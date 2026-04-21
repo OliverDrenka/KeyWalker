@@ -42,6 +42,7 @@ void Game::Initialize( )
     m_pMap->SetHexMode(false);
     m_pMap->GenerateMapRandom();
 
+	m_AttackSpawnTime = 10.f;
 	m_AttackTimer = 0;
 	m_TotalTime = 0;
 	m_Score = 0;
@@ -93,14 +94,18 @@ void Game::Update( float elapsedSec )
 		{
 			m_AttackTimer += elapsedSec;
 			m_TotalTime += elapsedSec;
-			if (m_AttackTimer >= 6.f) 
+			if (m_AttackTimer >= 4.f) 
 			{
-                m_AttackTimer -= 10;
+                m_AttackTimer -= m_AttackSpawnTime;
+				if (m_AttackSpawnTime > 5.f)
+				{
+					m_AttackSpawnTime -= 0.2f;
+				}
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-			
+				m_pAttackManager->IncreaseAttackSpeed();
 			}
 			if (m_TotalTime > 6.f && !m_PointsSpawned)
 			{
@@ -151,13 +156,13 @@ void Game::Draw() const
 			glTranslatef(-m_pMap->GetWidth() / 2, -m_pMap->GetHeight() / 2, 0.f);
             m_pMap->Draw();
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
+			m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 2 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 2 + m_pMap->GetHeight() / 2));
             m_pAttackManager->Draw();
 		}
 		glPopMatrix();
-		//m_Overlay->Draw(Vector2f(-m_Overlay->GetWidth() / 2, - m_Overlay->GetHeight() / 2));
         const int
             playerHp{ m_pPlayer->GetHp() };
-		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight()};
+		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight() + 5.f};
 
 		glScalef(0.8f, 0.8f, 1.f);
 

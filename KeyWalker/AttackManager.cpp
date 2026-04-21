@@ -9,7 +9,7 @@ AttackManager::AttackManager()
 	m_FreeSlots.reserve(300);
 	for (int idx{ 0 }; idx < m_Attacks.size(); ++idx) {
 		m_FreeSlots.push_back(idx);
-		m_Attacks[idx].SetSpeed(rand()%5 + 15);
+		m_Attacks[idx].SetSpeed(rand()%5 + 14);
 	}
 }
 
@@ -47,6 +47,13 @@ void AttackManager::Draw() const
 			continue;
 		}
 		attack.Draw();
+	}
+}
+
+void AttackManager::IncreaseAttackSpeed()
+{
+	for (int idx{ 0 }; idx < m_Attacks.size(); ++idx) {
+		m_Attacks[idx].SetSpeed(m_Attacks[idx].GetSpeed() + 1);
 	}
 }
 

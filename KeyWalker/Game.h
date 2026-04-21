@@ -56,6 +56,7 @@ private:
 
 
 	float m_AttackTimer;
+	float m_AttackSpawnTime;
 	float m_TotalTime;
 	int m_Score;
 	

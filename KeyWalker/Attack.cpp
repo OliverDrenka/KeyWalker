@@ -67,6 +67,11 @@ const Vector2f Attack::GetDirection() const
 	return m_Direction;
 }
 
+const float Attack::GetSpeed() const
+{
+	return m_Speed;
+}
+
 void Attack::Reset()
 {
 	m_LifeTime = 0.f;
