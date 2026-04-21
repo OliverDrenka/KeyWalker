@@ -21,6 +21,16 @@ void Game::Initialize( )
 	m_Overlay = new Texture("Overlay.png");
 	m_AttackManager = new AttackManager();
 	m_Letters = new SpriteSheet(36, "Font.png");
+
+	m_SoundButtonPress = new SoundEffect("ButtonPress.wav");
+	m_SoundHit = new SoundEffect("Hit.wav");
+	m_SoundPointSpawn = new SoundEffect("PointSpawn.wav");
+	m_SoundPointCollected = new SoundEffect("PointCollected.wav");
+
+	m_SoundButtonPress->SetVolume(50);
+	m_SoundHit->SetVolume(40);
+
+	m_Map->SetHexMode(true);
 	
 }
 
@@ -31,6 +41,11 @@ void Game::Cleanup( )
 	delete m_Overlay;
 	delete m_AttackManager;
 	delete m_Letters;
+
+	delete m_SoundButtonPress;
+	delete m_SoundHit;
+	delete m_SoundPointSpawn;
+	delete m_SoundPointCollected;
 }
 
 void Game::Update( float elapsedSec )
@@ -45,25 +60,50 @@ void Game::Update( float elapsedSec )
 	//{
 	//	std::cout << "Left and up arrow keys are down\n";
 	//}
-	if (m_Player->GetHp() > 0)
+	switch (m_GameState)
 	{
+		case GameState::start:
+		{
+			break;
+		}
+		case GameState::gameplay:
+		{
+			m_AttackTimer += elapsedSec;
+			m_TotalTime += elapsedSec;
+			if (m_AttackTimer >= 6.f) 
+			{
+				m_AttackTimer -= 6;
+				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+				m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
+			}
+			m_AttackManager->Update(elapsedSec);
+			m_Player->Update(elapsedSec);
+			if (m_AttackManager->isColliding(m_Player->GetBounds(m_Map->GetTileSize(), m_Map->IsHexMode())))
+			{
+				m_Player->Hit(1);
+				m_SoundHit->Play(0);
+				if (m_Player->GetHp() <= 0)
+				{
+					m_GameState = GameState::end;
+				}
+			}
+			break;
+		}
+		case GameState::paused:
+		{
+			break;
+		}
+		case GameState::end:
+		{
+			break;
+		}
 
-		m_AttackTimer += elapsedSec;
-		m_TotalTime += elapsedSec;
-		if (m_AttackTimer >= 6.f) 
-		{
-			m_AttackTimer -= 6;
-			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-			m_AttackManager->SpawnAlteratingAttack(1, m_Map->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_Map->GetWidth(), m_Map->GetHeight(), false);
-		}
-		m_AttackManager->Update(elapsedSec);
-		if (m_AttackManager->isColliding(m_Player->GetBounds(m_Map->GetTileSize())))
-		{
-			m_Player->Hit(1);
-		}
 	}
+
+
+	
 }
 
 void Game::Draw() const
@@ -80,7 +120,7 @@ void Game::Draw() const
 		{
 			glTranslatef(-m_Map->GetWidth() / 2, -m_Map->GetHeight() / 2, 0.f);
 			m_Map->Draw();
-			m_Player->Draw(m_Map->GetTileSize());
+			m_Player->Draw(m_Map->GetTileSize(), m_Map->IsHexMode());
 			m_AttackManager->Draw();
 		}
 		glPopMatrix();
@@ -107,7 +147,13 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 	{
 		value -= 97;
 	}
-	m_Player->Move( m_Map->GetAdjecentTileDirection( m_Player->GetPosition(), value ));
+	//m_Map->RandomizeTile(m_Player->GetPosition());
+	Vector2i movement{ m_Map->GetAdjecentTileDirection(m_Player->GetPosition(), value) };
+	if (movement != Vector2i(0, 0))
+	{
+		m_SoundButtonPress->Play(0);
+		m_Player->Move(movement);
+	}
 }
 
 void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )

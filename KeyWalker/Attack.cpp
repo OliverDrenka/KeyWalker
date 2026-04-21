@@ -35,7 +35,16 @@ void Attack::Update(float deltaTime)
 
 void Attack::Draw() const
 {
-	m_Texture->Draw(m_Position);
+    if (m_Texture)
+    {
+        // Draw texture centered at m_Position (m_Position is logical center used for collisions)
+        Vector2f drawPos = m_Position - Vector2f(m_Texture->GetWidth() * 0.5f, m_Texture->GetHeight() * 0.5f);
+        m_Texture->Draw(drawPos);
+    }
+    else
+    {
+        m_Texture->Draw(m_Position);
+    }
 }
 
 const float Attack::GetLifeTime() const
@@ -50,7 +59,7 @@ const float Attack::GetRadius() const
 
 const Vector2f Attack::GetPosition() const
 {
-	return m_Position;
+    return m_Position;
 }
 
 const Vector2f Attack::GetDirection() const
@@ -67,7 +76,21 @@ void Attack::Reset()
 
 void Attack::SetPosition(Vector2f position)
 {
-	m_Position = position;
+    // External code historically provided bottom-left texture coordinates.
+    // Internally we store the logical center to simplify collision math and drawing.
+    if (m_Texture)
+    {
+        m_Position = position + Vector2f(m_Texture->GetWidth() * 0.5f, m_Texture->GetHeight() * 0.5f);
+    }
+    else
+    {
+        m_Position = position;
+    }
+}
+
+void Attack::SetCenterPosition(Vector2f position)
+{
+    m_Position = position;
 }
 
 void Attack::SetDirection(Vector2f direction)
@@ -92,5 +115,5 @@ const bool Attack::IsActive() const
 
 const Circlef Attack::GetBounds() const
 {
-	return Circlef(m_Position, m_Radius);
+    return Circlef(m_Position, m_Radius);
 }

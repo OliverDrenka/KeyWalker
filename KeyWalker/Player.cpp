@@ -12,23 +12,59 @@ Player::Player(Vector2i position)
 	: m_Position{ position }
 	, m_Hp{ 3 }
 	, m_Radius{ 5.f }
+	, m_SpriteIdx{ 0 }
+	, m_FrameTimer{ 0.f }
+	, m_TimePerFrame{ 0.1f }
 {
-	m_Texture = new Texture("Player.png");
+	m_SpriteSheet = new SpriteSheet(4, "Player.png");
 }
 
 Player::~Player()
 {
-	delete m_Texture;
+	delete m_SpriteSheet;
 }
 
-void Player::Draw(const float tileSize) const
+void Player::Draw(const float tileSize, bool hexMode) const
 {	
-	const Vector2f position
+    if (!hexMode)
+    {
+        // For square grid, m_Position represents tile coords; compute center and draw sprite centered
+        Vector2f center{ m_Position.x * tileSize + tileSize * 0.5f, m_Position.y * tileSize + tileSize * 0.5f };
+        Vector2f drawPos{ center.x - m_SpriteSheet->GetSpriteWidth() * 0.5f, center.y - m_SpriteSheet->GetSpriteHeight() * 0.5f };
+        m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx);
+    }
+    else
+    {
+        // odd-r horizontal hex layout: use same offsets as Map::Draw
+		const float xOffset = tileSize * 0.5f;
+
+		float x = m_Position.x * tileSize + ((m_Position.y & 1) ? xOffset : 0.0f);
+		float y = m_Position.y * tileSize; // <-- keep square spacing
+
+		const Vector2f position{
+			x + (tileSize - m_SpriteSheet->GetSpriteWidth()) / 2,
+			y + (tileSize - m_SpriteSheet->GetSpriteHeight()) / 2
+		};
+
+		m_SpriteSheet->DrawSprite(position, m_SpriteIdx);
+    }
+}
+void Player::Update(const float deltaTime)
+{
+	if (m_SpriteIdx != 0)
 	{
-		m_Position.x * tileSize + (tileSize - m_Texture->GetWidth() )/2,
-		m_Position.y * tileSize + (tileSize - m_Texture->GetWidth() ) / 2
-	};
-	m_Texture->Draw(position);
+		m_FrameTimer += deltaTime;
+		if (m_FrameTimer >= m_TimePerFrame)
+		{
+			m_FrameTimer -= m_TimePerFrame;
+			m_SpriteIdx += 1;
+		}
+		if (m_SpriteIdx > 3)
+		{
+			m_SpriteIdx = 0;
+			m_FrameTimer = 0.f;
+		}
+	}
 }
 
 void Player::Move(Vector2i direction)
@@ -42,6 +78,7 @@ void Player::Move(Vector2i direction)
 void Player::Hit(const float damage)
 {
 	m_Hp -= damage;
+	m_SpriteIdx = 1;
 }
 
 const int Player::GetHp() const
@@ -54,14 +91,29 @@ const Vector2i Player::GetPosition()
 	return m_Position;
 }
 
-const Circlef Player::GetBounds(const float tileSize)
+const Circlef Player::GetBounds(const float tileSize, bool hexMode)
 {
-	Circlef bounds
-	{
-		static_cast<float>(m_Position.x) * tileSize,
-		static_cast<float>(m_Position.y) * tileSize,
-		m_Radius
-	};
+    if (!hexMode)
+    {
+        // For square grid use tile center as collision center (matches draw position)
+        Circlef bounds
+        {
+            static_cast<float>(m_Position.x) * tileSize + tileSize * 0.5f,
+            static_cast<float>(m_Position.y) * tileSize + tileSize * 0.5f,
+            m_Radius
+        };
+        return bounds;
+    }
 
+	const float xOffset = tileSize * 0.5f;
+
+	float x = m_Position.x * tileSize
+		+ ((m_Position.y & 1) ? xOffset : 0.0f)
+		+ tileSize / 2.f;
+
+	float y = m_Position.y * tileSize   // <-- no 0.866 factor
+		+ tileSize / 2.f;
+
+	Circlef bounds{ x, y, m_Radius };
 	return bounds;
 }

@@ -20,6 +20,8 @@ public:
 	void Reset();
 
 	void SetPosition( Vector2f position );
+	// Set internal position directly (position is the logical center)
+	void SetCenterPosition( Vector2f position );
 	void SetDirection( Vector2f direction );
 	void SetRadius( float radius );
 	void SetSpeed( float speed );

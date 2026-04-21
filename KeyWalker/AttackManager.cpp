@@ -71,7 +71,7 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 	const Vector2f
 		orthogonal{ direction.Orthogonal() };
 	const float
-		maxWidth{ mapWidth - 16 },
+		maxWidth{ mapWidth -16 },
 		maxHeight{ mapHeight - 16 };
 
 	for (int idx{}; idx < amount+3; ++idx)
@@ -121,9 +121,10 @@ const bool AttackManager::isColliding(Circlef collider)
 			if (centerDistance.Length() <= radiusTotal)
 			{
 				attack.SetDirection(attack.GetDirection() * -1);
-				const float
-					overlap{ radiusTotal - centerDistance.Length()};
-				attack.SetPosition(attack.GetPosition() - overlap * attack.GetDirection());
+				const float overlap{ radiusTotal - centerDistance.Length() };
+				// Move the attack center back by the overlap along its new direction
+				Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
+				attack.SetCenterPosition(newCenter);
 				return true;
 			}
 
