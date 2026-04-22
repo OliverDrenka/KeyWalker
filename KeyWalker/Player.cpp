@@ -11,7 +11,7 @@ Player::Player()
 Player::Player(Vector2i position)
 	: m_Position{ position }
 	, m_Hp{ 3 }
-	, m_Radius{ 5.f }
+	, m_Radius{ 4.f }
 	, m_SpriteIdx{ 0 }
 	, m_FrameTimer{ 0.f }
 	, m_TimePerFrame{ 0.1f }

@@ -12,7 +12,7 @@ Attack::Attack(Vector2f position, float speed, float scale)
 	, m_Scale { scale }
 	, m_LifeTime { 0 }
 	, m_Active { false }
-	, m_Radius { 8.f }
+	, m_Radius { 6.f }
 {
 	m_Texture = new Texture("BallAttack.png");
 }

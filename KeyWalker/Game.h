@@ -49,6 +49,7 @@ private:
 
 	TTF_Font* m_pFont;
 	Texture* m_pStartText;
+	Texture* m_pBestText;
 	Texture* m_pRestartText;
 	Texture* m_pPauseText;
 	Texture* m_pScoreText;
@@ -70,6 +71,11 @@ private:
 
 	GameState m_GameState{ GameState::start };
 
+	float m_BestTime;
+	float m_BestScore;
 
+	// Save/load helpers
+	void SaveBest();
+	void LoadBest();
 
 };

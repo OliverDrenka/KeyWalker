@@ -2,6 +2,7 @@
 #include "Game.h"
 #include <iostream>
 #include "utils.h"
+#include <fstream>
 
 Game::Game( const Window& window ) 
 	:BaseGame{ window }
@@ -24,7 +25,8 @@ void Game::Initialize( )
 	m_pScoreText = new Texture("Score:", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pTimeText = new Texture("Time:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 	m_pHpText = new Texture("Hp:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
-	
+	m_pBestText = new Texture("Best", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+
     m_pMap = new Map();
     m_pPlayer = new Player();
     m_pOverlay = new Texture("Overlay.png");
@@ -49,7 +51,9 @@ void Game::Initialize( )
 	m_Score = 0;
 	m_PointsSpawned = false;
 
-	
+        LoadBest();
+
+
 }
 
 void Game::Cleanup( )
@@ -99,9 +103,9 @@ void Game::Update( float elapsedSec )
 			if (m_AttackTimer >= 4.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
-				if (m_AttackSpawnTime > 5.f)
+				if (m_AttackSpawnTime > 4.f)
 				{
-					m_AttackSpawnTime -= 0.2f;
+					m_AttackSpawnTime -= 0.5f;
 				}
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
                 m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
@@ -167,21 +171,44 @@ void Game::Draw() const
 		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight() + 5.f};
 
 		glScalef(0.8f, 0.8f, 1.f);
-
+		//Hp
 		m_pHpText->Draw(Vector2f(-m_pMap->GetWidth() / 2 - m_pHpText->GetWidth(), y));
         m_pLetters->DrawSprite(Vector2f(-m_pMap->GetWidth() / 2, y + 3.f), 26 + playerHp);
 
-		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30.f, y));
+		//Score
+		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30,y ));
 		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f, y + 3.f), 26 + static_cast<int>(m_Score) % 10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 10)/10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f, y + 3.f), 26 + (static_cast<int>(m_Score) - static_cast<int>(m_Score) % 100)/100);
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f, y + 3.f), 26 + (static_cast<int>(m_Score) / 10 % 10));
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f, y + 3.f), 26 + (static_cast<int>(m_Score) / 100 % 10));
 		
-       
+       //Time
 		m_pTimeText->Draw(Vector2f(m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, y));
 		m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 10.f, y + 3.f), 26 + static_cast<int>(m_TotalTime) % 10);
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 10)/10);
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) - static_cast<int>(m_TotalTime) % 100)/100);
+        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 10 % 10));
+        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 100 % 10));
+		glPushMatrix();
+		{
+
+		glScalef(0.6f, 0.6f, 1.f);
 		
+		//BestScore
+		m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth()/2- m_pBestText->GetWidth()/2 -23.f,-50 -y - 18.f));
+		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30.f -23.f,-50-y - 18.f));
+		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f -23.f, -50-1*y - 15.f), 26 + static_cast<int>(m_BestScore) % 10);
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f -23.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
+        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f -23.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
+		
+
+		//BestTime
+		m_pBestText->Draw(Vector2f( 10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(),-50 -y - 18.f));
+		m_pTimeText->Draw(Vector2f( 10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50-y - 18.f));
+		m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 + 10.f, -50-1*y - 15.f), 26 + static_cast<int>(m_BestTime) % 10);
+        m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 + 0.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
+        m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 - 10.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
+		
+		}
+		glPopMatrix();
+
 
 	}
 	switch (m_GameState)
@@ -272,6 +299,7 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 		{
 			if (e.keysym.sym == 114)
 			{
+				SaveBest();
 				Cleanup();
 				Initialize();
 				m_GameState = GameState::gameplay;
@@ -300,6 +328,31 @@ void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 	//	break;
 	//}
  }
+
+void Game::LoadBest()
+{
+    std::string filePath = "save.txt";
+    std::ifstream inFile(filePath);
+    if (inFile.is_open())
+    {
+        int bestScoreFile = 0;
+        int bestTimeFile = 0;
+        if (inFile >> bestScoreFile >> bestTimeFile)
+        {
+            m_BestScore = static_cast<float>(bestScoreFile);
+            m_BestTime = static_cast<float>(bestTimeFile);
+            std::cout << "Loaded bests: score=" << m_BestScore << " time=" << m_BestTime << "\n";
+        }
+        else
+        {
+            std::cout << "save.txt empty or invalid, using defaults\n";
+        }
+    }
+    else
+    {
+        std::cout << "Could not open save.txt for reading, using defaults\n";
+    }
+}
 
 void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
 {
@@ -346,4 +399,22 @@ void Game::ClearBackground( ) const
 {
 	glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT );
+}
+
+void Game::SaveBest()
+{
+    std::string filePath = "save.txt";
+    std::ofstream outFile(filePath);
+    if (outFile.is_open())
+    {
+        if (m_Score > m_BestScore) m_BestScore = static_cast<float>(m_Score);
+        if (m_TotalTime > m_BestTime) m_BestTime = m_TotalTime;
+        outFile << m_BestScore << " " << m_BestTime;
+        outFile.close();
+        std::cout << "Saved bests: score=" << m_BestScore << " time=" << m_BestTime << "\n";
+    }
+    else
+    {
+        std::cout << "Could not open save.txt for writing\n";
+    }
 }
