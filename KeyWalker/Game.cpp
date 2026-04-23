@@ -107,10 +107,28 @@ void Game::Update( float elapsedSec )
 				{
 					m_AttackSpawnTime -= 0.5f;
 				}
-                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, -1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+                bool isHex = m_pMap->IsHexMode();
+               // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+               // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-0.5f, -1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+                // Spawn attacks for two principal axes; AttackManager will also spawn from the opposite
+                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+				if (isHex)
+				{
+
+					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+				} 
+				else
+				{
+					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
+
+				}
+                //m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(cos(0), sin(0)).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+                //m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(cos(90), sin(90)).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+				//std::cout << cos(0.f/180*M_PI) << ", " << sin(0.f/180*M_PI) << std::endl;
+				//std::cout << cos(90.f/180*M_PI) << ", " << sin(90.f/180*M_PI) << std::endl;
+				//   m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+              //  m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
 				m_pAttackManager->IncreaseAttackSpeed();
 			}
 			if (m_TotalTime > 6.f && !m_PointsSpawned)

@@ -11,9 +11,11 @@ public:
 	void Update(const float deltaTime);
 	void Draw() const;
 
-	Attack* SpawnAttack();
+    // Returns index of spawned attack, or -1 if none
+    int SpawnAttack();
 
-	void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight , bool offSet);
+    // if isHex is true, spawned attacks will be snapped to hex tile centers
+    void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight, bool isHex);
 	void IncreaseAttackSpeed();
 
 	const bool isColliding(Circlef collider);

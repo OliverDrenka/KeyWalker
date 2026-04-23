@@ -4,6 +4,7 @@
 #include <iostream>
 #include "utils.h"
 #include <algorithm>
+#include <vector>
 
 
 Map::Map()
@@ -287,15 +288,30 @@ void Map::RandomizeTile(const Vector2i& position)
 			return true;
 		};
 
-	int attempts = 0;
-	while (!IsValidForNeighbors(value) && attempts < 36)
-	{
-		value = (value + 1) % 36;
-		++attempts;
-	}
+    // Build list of all valid candidates and pick one uniformly at random.
+    std::vector<int> candidates;
+    candidates.reserve(36);
+    for (int v = 0; v < 36; ++v)
+    {
+        if (IsValidForNeighbors(v)) candidates.push_back(v);
+    }
 
-	// Set the chosen value (if attempts exhausted, picks last candidate)
-	m_Grid->SetTile(position.x, position.y, value);
+    if (!candidates.empty())
+    {
+        int pick = candidates[rand() % static_cast<int>(candidates.size())];
+        m_Grid->SetTile(position.x, position.y, pick);
+    }
+    else
+    {
+        // Fallback to original incremental scan if no candidate found (should be rare)
+        int attempts = 0;
+        while (!IsValidForNeighbors(value) && attempts < 36)
+        {
+            value = (value + 1) % 36;
+            ++attempts;
+        }
+        m_Grid->SetTile(position.x, position.y, value);
+    }
 }
 
 void Map::GenerateMapOrdered()
