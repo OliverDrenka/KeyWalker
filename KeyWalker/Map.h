@@ -14,7 +14,8 @@ public:
     void SetHexMode(bool hex);
     bool IsHexMode() const;
 
-	void Draw( Vector2f position = Vector2f(0,0) );
+    // If pPlayerPosition is non-null, restrict letter drawing to tiles visible from that position
+    void Draw( Vector2f position = Vector2f(0,0), const Vector2i* pPlayerPosition = nullptr );
 
 	const float GetTileSize() const;
 	const float GetWidth() const;
@@ -39,6 +40,8 @@ private:
 	float m_TileSize;
 
     bool m_IsHexMode;
+    // persistent visibility mask from previous frame
+    std::vector<char> m_PrevVisible;
 
 };
 

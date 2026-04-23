@@ -31,7 +31,7 @@ void Game::Initialize( )
     m_pPlayer = new Player();
     m_pOverlay = new Texture("Overlay.png");
     m_pAttackManager = new AttackManager();
-    m_pLetters = new SpriteSheet(36, "Font.png", 3);
+    m_pLetters = new SpriteSheet(36, "Font.png", 4);
 
     m_pSoundButtonPress = new SoundEffect("ButtonPress.wav");
     m_pSoundHit = new SoundEffect("Hit.wav");
@@ -75,6 +75,7 @@ void Game::Cleanup( )
 	delete m_pScoreText;
 	delete m_pTimeText;
 	delete m_pHpText;
+    delete m_pBestText;
 	TTF_CloseFont( m_pFont );
 }
 
@@ -177,8 +178,9 @@ void Game::Draw() const
 
 		glPushMatrix();
 		{
-			glTranslatef(-m_pMap->GetWidth() / 2, -m_pMap->GetHeight() / 2, 0.f);
-            m_pMap->Draw();
+            glTranslatef(-m_pMap->GetWidth() / 2, -m_pMap->GetHeight() / 2, 0.f);
+            Vector2i playerTile = m_pPlayer->GetPosition();
+            m_pMap->Draw(Vector2f(0.f, 0.f), &playerTile);
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
 			m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 2 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 2 + m_pMap->GetHeight() / 2));
             m_pAttackManager->Draw();

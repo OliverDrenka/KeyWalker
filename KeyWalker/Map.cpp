@@ -5,22 +5,25 @@
 #include "utils.h"
 #include <algorithm>
 #include <vector>
+#include <deque>
 
 
 Map::Map()
 {
     m_Grid = new Grid(10, 6);
-    m_Letters = new SpriteSheet(36, "Font.png", 3);
+    m_Letters = new SpriteSheet(36, "Font.png", 4);
     m_TileTexture = new Texture("Tile.png");
     m_TileSize = m_TileTexture->GetWidth();
     m_IsHexMode = false;
+    // initialize previous visibility mask
+    m_PrevVisible.assign(m_Grid->GetNumCols() * m_Grid->GetNumRows(), 0);
 }
 
 Map::~Map()
 {
-	delete m_Grid;
-	delete m_Letters;
-	delete m_TileTexture;
+    delete m_Grid;
+    delete m_Letters;
+    delete m_TileTexture;
 }
 
 void Map::SetHexMode(bool hex)
@@ -33,7 +36,7 @@ bool Map::IsHexMode() const
 	return m_IsHexMode;
 }
 
-void Map::Draw( Vector2f position )
+void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 {
 	const int
 		numCols{ m_Grid->GetNumCols() },
@@ -43,6 +46,193 @@ void Map::Draw( Vector2f position )
     Vector2f letterPosition{ position.x + (m_Letters->GetSpriteWidth() / 2.f) - 1.5f,
                              position.y + (m_Letters->GetSpriteHeight() / 2.f) };
 
+    // Precompute visibility mask if player position given
+    std::vector<char> visible;
+    if (pPlayerPosition)
+    {
+        visible.assign(numCols * numRows, 0);
+        // ensure previous-visible mask matches grid size
+        if (m_PrevVisible.size() != visible.size())
+            m_PrevVisible.assign(visible.size(), 0);
+        const Vector2i pp = *pPlayerPosition;
+
+        if (!m_IsHexMode)
+        {
+            // square: initial Manhattan radius 2 => diamond shape (exclude the 4 far corners)
+            for (int dy = -2; dy <= 2; ++dy)
+            {
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    // include only tiles within Manhattan distance <= 2
+                    if (std::abs(dx) + std::abs(dy) > 2) continue;
+                    int cx = pp.x + dx;
+                    int cy = pp.y + dy;
+                    if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
+                    {
+                        visible[cy * numCols + cx] = 1;
+                    }
+                }
+            }
+
+            // Expand visibility for any visible 'vision' tiles.
+            // Use a queue so vision tiles can cascade (vision tiles revealed by other vision tiles also expand).
+            std::deque<Vector2i> q;
+            for (int ry = 0; ry < numRows; ++ry)
+            {
+                for (int rx = 0; rx < numCols; ++rx)
+                {
+                    if (visible[ry * numCols + rx] && m_Grid->GetTileState(rx, ry) == Tile::State::vision)
+                        q.emplace_back(rx, ry);
+                }
+            }
+
+            while (!q.empty())
+            {
+                Vector2i v = q.front(); q.pop_front();
+                for (int dy = -2; dy <= 2; ++dy)
+                {
+                    for (int dx = -2; dx <= 2; ++dx)
+                    {
+                        int cx = v.x + dx;
+                        int cy = v.y + dy;
+                        if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
+                        {
+                            if (!visible[cy * numCols + cx])
+                            {
+                                visible[cy * numCols + cx] = 1;
+                                if (m_Grid->GetTileState(cx, cy) == Tile::State::vision)
+                                    q.emplace_back(cx, cy);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // hex: BFS to depth 2 on odd-r layout from the player
+            std::deque<std::pair<Vector2i,int>> q0;
+            q0.emplace_back(pp, 0);
+            auto try_mark = [&](int x, int y)
+            {
+                if (x >= 0 && x < numCols && y >= 0 && y < numRows && !visible[y * numCols + x])
+                {
+                    visible[y * numCols + x] = 1;
+                    return true;
+                }
+                return false;
+            };
+
+            try_mark(pp.x, pp.y);
+            while (!q0.empty())
+            {
+                auto cur = q0.front(); q0.pop_front();
+                Vector2i pos = cur.first;
+                int depth = cur.second;
+                if (depth >= 2) continue;
+                int col = pos.x;
+                int row = pos.y;
+                bool odd = (row & 1) != 0;
+                int nx[6], ny[6];
+                nx[0] = col + 1; ny[0] = row; // E
+                nx[1] = col - 1; ny[1] = row; // W
+                if (odd)
+                {
+                    nx[2] = col + 1; ny[2] = row - 1; // NE
+                    nx[3] = col;     ny[3] = row - 1; // NW
+                    nx[4] = col + 1; ny[4] = row + 1; // SE
+                    nx[5] = col;     ny[5] = row + 1; // SW
+                }
+                else
+                {
+                    nx[2] = col;     ny[2] = row - 1; // NE
+                    nx[3] = col - 1; ny[3] = row - 1; // NW
+                    nx[4] = col;     ny[4] = row + 1; // SE
+                    nx[5] = col - 1; ny[5] = row + 1; // SW
+                }
+
+                for (int i = 0; i < 6; ++i)
+                {
+                    int cx = nx[i];
+                    int cy = ny[i];
+                    if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
+                    {
+                        if (try_mark(cx, cy))
+                            q0.emplace_back(Vector2i(cx, cy), depth + 1);
+                    }
+                }
+            }
+
+            // Now expand from any 'vision' tiles that are within the player's initial depth-2 visibility.
+            // Do NOT expand from vision tiles that were revealed only by this expansion (no cascading).
+            std::vector<Vector2i> visionSeeds;
+            for (int ry = 0; ry < numRows; ++ry)
+            {
+                for (int rx = 0; rx < numCols; ++rx)
+                {
+                    if (visible[ry * numCols + rx] && m_Grid->GetTileState(rx, ry) == Tile::State::vision)
+                        visionSeeds.emplace_back(rx, ry);
+                }
+            }
+
+            for (const Vector2i& seed : visionSeeds)
+            {
+                // local visited ensures we explore full depth-2 around the seed even if
+                // some tiles are already globally visible from the player's BFS.
+                std::vector<char> visited(numCols * numRows, 0);
+                std::deque<std::pair<Vector2i,int>> qv;
+                qv.emplace_back(seed, 0);
+                visited[seed.y * numCols + seed.x] = 1;
+                // seed is already marked visible by earlier code
+                while (!qv.empty())
+                {
+                    auto cur = qv.front(); qv.pop_front();
+                    Vector2i pos = cur.first;
+                    int depth = cur.second;
+                    if (depth >= 2) continue;
+                    int col = pos.x;
+                    int row = pos.y;
+                    bool odd = (row & 1) != 0;
+                    int nx[6], ny[6];
+                    nx[0] = col + 1; ny[0] = row; // E
+                    nx[1] = col - 1; ny[1] = row; // W
+                    if (odd)
+                    {
+                        nx[2] = col + 1; ny[2] = row - 1; // NE
+                        nx[3] = col;     ny[3] = row - 1; // NW
+                        nx[4] = col + 1; ny[4] = row + 1; // SE
+                        nx[5] = col;     ny[5] = row + 1; // SW
+                    }
+                    else
+                    {
+                        nx[2] = col;     ny[2] = row - 1; // NE
+                        nx[3] = col - 1; ny[3] = row - 1; // NW
+                        nx[4] = col;     ny[4] = row + 1; // SE
+                        nx[5] = col - 1; ny[5] = row + 1; // SW
+                    }
+
+                    for (int i = 0; i < 6; ++i)
+                    {
+                        int cx = nx[i];
+                        int cy = ny[i];
+                        if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
+                        {
+                            int idx = cy * numCols + cx;
+                            if (visited[idx]) continue;
+                            visited[idx] = 1;
+                            // mark globally visible
+                            if (!visible[idx]) visible[idx] = 1;
+                            // enqueue neighbor for further expansion only if it's not a vision tile
+                            if (m_Grid->GetTileState(cx, cy) != Tile::State::vision)
+                                qv.emplace_back(Vector2i(cx, cy), depth + 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // draw tiles; if visible mask exists, only draw letters for visible tiles
     if (!m_IsHexMode)
     {
         for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
@@ -50,7 +240,26 @@ void Map::Draw( Vector2f position )
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
                 m_TileTexture->Draw(tilePosition);
-                m_Letters->DrawSprite(letterPosition, m_Grid->GetTileValue(colIdx, rowIdx), static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
+                bool showLetter = true;
+                if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
+                // newly visible? randomize tile
+                if (pPlayerPosition && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
+                {
+                    RandomizeTile(Vector2i(colIdx, rowIdx));
+                }
+                if (showLetter)
+                {
+                    m_Letters->DrawSprite(letterPosition, m_Grid->GetTileValue(colIdx, rowIdx), static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
+                }
+                else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
+                {
+                    // draw a small golden marker at tile center to indicate point location
+                    Vector2f center = tilePosition + Vector2f(m_TileSize * 0.5f, m_TileSize * 0.5f);
+                    const float radius = m_TileSize * 0.25f;
+                    utils::SetColor(Color4f(1.0f, 0.84f, 0.0f, 1.0f));
+                    utils::FillEllipse(center, radius, radius);
+                    utils::SetColor(Color4f(1.f, 1.f, 1.f, 1.f));
+                }
                 tilePosition.x += m_TileSize;
                 letterPosition.x += m_TileSize;
             }
@@ -62,25 +271,60 @@ void Map::Draw( Vector2f position )
     }
     else
     {
-		const float xOffset = m_TileSize * 0.5f;
+        const float xOffset = m_TileSize * 0.5f;
 
-		for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
-		{
-			for (int colIdx{}; colIdx < numCols; ++colIdx)
-			{
-				float x = position.x + colIdx * m_TileSize + ((rowIdx & 1) ? xOffset : 0.0f);
-				float y = position.y + rowIdx * m_TileSize; // <-- IMPORTANT: no compression
+        for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
+        {
+            for (int colIdx{}; colIdx < numCols; ++colIdx)
+            {
+                float x = position.x + colIdx * m_TileSize + ((rowIdx & 1) ? xOffset : 0.0f);
+                float y = position.y + rowIdx * m_TileSize; // <-- IMPORTANT: no compression
 
-				Vector2f tp{ x, y };
-				Vector2f lp{ x + (m_Letters->GetSpriteWidth() / 2.f) - 1.5f,
-							 y + (m_Letters->GetSpriteHeight() / 2.f) };
+                Vector2f tp{ x, y };
+                Vector2f lp{ x + (m_Letters->GetSpriteWidth() / 2.f) - 1.5f,
+                             y + (m_Letters->GetSpriteHeight() / 2.f) };
 
-				m_TileTexture->Draw(tp);
-				m_Letters->DrawSprite(lp,
-					m_Grid->GetTileValue(colIdx, rowIdx),
-					static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
-			}
-		}
+                m_TileTexture->Draw(tp);
+                bool showLetter = true;
+                if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
+                // newly visible? randomize tile
+                if (pPlayerPosition && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
+                {
+                    RandomizeTile(Vector2i(colIdx, rowIdx));
+                }
+                if (showLetter)
+                {
+                    m_Letters->DrawSprite(lp,
+                        m_Grid->GetTileValue(colIdx, rowIdx),
+                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
+                }
+                else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
+                {
+                    // hex tile: draw golden marker at tile center
+                    Vector2f center = tp + Vector2f(m_TileSize * 0.5f, m_TileSize * 0.5f);
+                    const float radius = m_TileSize * 0.25f;
+                    utils::SetColor(Color4f(1.0f, 0.84f, 0.0f, 1.0f));
+                    utils::FillEllipse(center, radius, radius);
+                    utils::SetColor(Color4f(1.f, 1.f, 1.f, 1.f));
+                }
+            }
+        }
+
+    }
+
+    // update previous visibility mask for both square and hex modes
+    if (pPlayerPosition)
+    {
+        if (m_PrevVisible.size() != visible.size()) m_PrevVisible.assign(visible.size(), 0);
+        m_PrevVisible = visible;
+    }
+    else
+    {
+        // No player -> clear previous visibility to avoid stale "newly visible" detections
+        if (m_PrevVisible.size() != static_cast<size_t>(numCols * numRows))
+            m_PrevVisible.assign(numCols * numRows, 0);
+        else
+            std::fill(m_PrevVisible.begin(), m_PrevVisible.end(), 0);
     }
 
 }
@@ -360,4 +604,14 @@ void Map::GenerateMapRandom()
 			RandomizeTile(position);
 		}
 	}
+
+    // Place vision tiles at: 3rd and 8th tile in the 2nd and 5th row
+    // (using 0-based indices: columns 2 and 7; rows 1 and 4)
+    if (m_Grid->GetNumCols() > 7 && m_Grid->GetNumRows() > 4)
+    {
+        m_Grid->SetTileState(2, 1, Tile::State::vision);
+        m_Grid->SetTileState(7, 1, Tile::State::vision);
+        m_Grid->SetTileState(2, 4, Tile::State::vision);
+        m_Grid->SetTileState(7, 4, Tile::State::vision);
+    }
 }

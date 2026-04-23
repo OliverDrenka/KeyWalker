@@ -7,7 +7,8 @@ public:
 	{
 		normal,
 		point,
-		danger
+		danger,
+		vision
 	};
 	Tile();
 	Tile(const int value);
