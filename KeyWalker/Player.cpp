@@ -15,6 +15,7 @@ Player::Player(Vector2i position)
 	, m_SpriteIdx{ 0 }
 	, m_FrameTimer{ 0.f }
 	, m_TimePerFrame{ 0.1f }
+	, m_Direction{Vector2i(0,0)}
 {
 	m_SpriteSheet = new SpriteSheet(4, "Player.png", 3);
 }
@@ -70,7 +71,7 @@ void Player::Update(const float deltaTime)
 void Player::Move(Vector2i direction)
 {
 
-
+	m_Direction = direction;
 	m_Position.x += direction.x;
 	m_Position.y += direction.y;
 }
@@ -116,4 +117,13 @@ const Circlef Player::GetBounds(const float tileSize, bool hexMode)
 
 	Circlef bounds{ x, y, m_Radius };
 	return bounds;
+}
+void Player::SetDirection(Vector2i direction)
+{
+	m_Direction = direction;
+}
+
+const Vector2f Player::GetDirection() const
+{
+	return Vector2f(m_Direction.x, m_Direction.y);
 }

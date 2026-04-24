@@ -171,10 +171,13 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
     spawnDir(Vector2f(-direction.x, -direction.y), 1);
 }
 
-const bool AttackManager::isColliding(Circlef collider)
+const bool AttackManager::IsColliding(Circlef collider, const Vector2f direction)
 {
-	for (Attack& attack : m_Attacks)
+	for (int idx{ 0 }; idx < m_Attacks.size(); ++idx)
 	{
+		Attack& attack = m_Attacks[idx];
+
+
 		if (attack.IsActive())
 		{
 			const Vector2f
@@ -183,9 +186,16 @@ const bool AttackManager::isColliding(Circlef collider)
 				radiusTotal(attack.GetRadius() + collider.radius);
 			if (centerDistance.Length() <= radiusTotal)
 			{
+				
 				attack.SetDirection(attack.GetDirection() * -1);
 				const float overlap{ radiusTotal - centerDistance.Length() };
-				// Move the attack center back by the overlap along its new direction
+				std::cout << centerDistance.Normalized() << ", " << attack.GetDirection() << std::endl;
+				if (direction.x == attack.GetDirection().x && direction.y == attack.GetDirection().y)
+				{
+					attack.Deactivate();
+					m_FreeSlots.push_back(idx);
+					return false;
+				}
 				Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
 				attack.SetCenterPosition(newCenter);
 				return true;

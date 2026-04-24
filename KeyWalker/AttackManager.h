@@ -18,7 +18,7 @@ public:
     void SpawnAlteratingAttack(const float amount, const float gapSize, const Vector2f direction, const float mapWidth, const float mapHeight, bool isHex);
 	void IncreaseAttackSpeed();
 
-	const bool isColliding(Circlef collider);
+	const bool IsColliding(Circlef collider, const Vector2f direction);
 
 private:
 	std::vector<Attack> m_Attacks;

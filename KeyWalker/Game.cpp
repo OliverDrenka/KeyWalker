@@ -104,9 +104,10 @@ void Game::Update( float elapsedSec )
 			if (m_AttackTimer >= 4.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
-				if (m_AttackSpawnTime > 4.f)
+				if (m_AttackSpawnTime > 5.f)
 				{
 					m_AttackSpawnTime -= 0.5f;
+					std::cout << m_AttackSpawnTime;
 				}
                 bool isHex = m_pMap->IsHexMode();
                // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
@@ -140,7 +141,7 @@ void Game::Update( float elapsedSec )
 			}
                 m_pAttackManager->Update(elapsedSec);
             m_pPlayer->Update(elapsedSec);
-            if (m_pAttackManager->isColliding(m_pPlayer->GetBounds(m_pMap->GetTileSize(), m_pMap->IsHexMode())))
+            if (m_pAttackManager->IsColliding(m_pPlayer->GetBounds(m_pMap->GetTileSize(), m_pMap->IsHexMode()), m_pPlayer->GetDirection()))
 			{
                 m_pPlayer->Hit(1);
                 m_pSoundHit->Play(0);
@@ -361,17 +362,9 @@ void Game::LoadBest()
         {
             m_BestScore = static_cast<float>(bestScoreFile);
             m_BestTime = static_cast<float>(bestTimeFile);
-            std::cout << "Loaded bests: score=" << m_BestScore << " time=" << m_BestTime << "\n";
-        }
-        else
-        {
-            std::cout << "save.txt empty or invalid, using defaults\n";
         }
     }
-    else
-    {
-        std::cout << "Could not open save.txt for reading, using defaults\n";
-    }
+
 }
 
 void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
@@ -431,10 +424,5 @@ void Game::SaveBest()
         if (m_TotalTime > m_BestTime) m_BestTime = m_TotalTime;
         outFile << m_BestScore << " " << m_BestTime;
         outFile.close();
-        std::cout << "Saved bests: score=" << m_BestScore << " time=" << m_BestTime << "\n";
-    }
-    else
-    {
-        std::cout << "Could not open save.txt for writing\n";
     }
 }

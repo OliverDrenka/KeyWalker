@@ -13,6 +13,8 @@ public:
 	void Move( Vector2i direction );
 	void Update(const float deltaTime);
 	void Hit(const float damage);
+	const Vector2f GetDirection() const;
+	void SetDirection(Vector2i direction);
 
 	const int GetHp() const;
 	const Vector2i GetPosition();
@@ -23,6 +25,7 @@ private:
 	SpriteSheet* m_SpriteSheet;
 	Vector2i m_Position;
 	int m_Hp;
+	Vector2i m_Direction;
 
 	int m_SpriteIdx;
 	float m_FrameTimer;

@@ -58,13 +58,13 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 
         if (!m_IsHexMode)
         {
-            // square: initial Manhattan radius 2 => diamond shape (exclude the 4 far corners)
+            // square: initial 5x5 box centered on player, but exclude the 4 far corners
             for (int dy = -2; dy <= 2; ++dy)
             {
                 for (int dx = -2; dx <= 2; ++dx)
                 {
-                    // include only tiles within Manhattan distance <= 2
-                    if (std::abs(dx) + std::abs(dy) > 2) continue;
+                    // exclude the four corner tiles where both offsets are ±2
+                    if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
                     int cx = pp.x + dx;
                     int cy = pp.y + dy;
                     if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
@@ -419,7 +419,8 @@ const Tile::State Map::GetTileState(Vector2i position) const
 
 void Map::RandomizeTile(const Vector2i& position)
 {
-	int value{ rand() % 36 };
+	const int maxValue{ 26 };
+	int value{ rand() % maxValue };
 	const int cols{ m_Grid->GetNumCols() };
 	const int rows{ m_Grid->GetNumRows() };
 
@@ -534,8 +535,8 @@ void Map::RandomizeTile(const Vector2i& position)
 
     // Build list of all valid candidates and pick one uniformly at random.
     std::vector<int> candidates;
-    candidates.reserve(36);
-    for (int v = 0; v < 36; ++v)
+    candidates.reserve(maxValue);
+    for (int v = 0; v < maxValue; ++v)
     {
         if (IsValidForNeighbors(v)) candidates.push_back(v);
     }
@@ -549,9 +550,9 @@ void Map::RandomizeTile(const Vector2i& position)
     {
         // Fallback to original incremental scan if no candidate found (should be rare)
         int attempts = 0;
-        while (!IsValidForNeighbors(value) && attempts < 36)
+        while (!IsValidForNeighbors(value) && attempts < maxValue)
         {
-            value = (value + 1) % 36;
+            value = (value + 1) % maxValue;
             ++attempts;
         }
         m_Grid->SetTile(position.x, position.y, value);

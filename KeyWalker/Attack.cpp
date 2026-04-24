@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Attack.h"
+#include "Player.h"
 
 Attack::Attack()
 	: Attack( Vector2f( 0, 0 ), 0, 0 )
