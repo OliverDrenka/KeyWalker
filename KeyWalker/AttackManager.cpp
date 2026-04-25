@@ -189,8 +189,7 @@ const bool AttackManager::IsColliding(Circlef collider, const Vector2f direction
 				
 				attack.SetDirection(attack.GetDirection() * -1);
 				const float overlap{ radiusTotal - centerDistance.Length() };
-				std::cout << centerDistance.Normalized() << ", " << attack.GetDirection() << std::endl;
-				if (direction.x == attack.GetDirection().x && direction.y == attack.GetDirection().y)
+				if (static_cast<int>(direction.x) == static_cast<int>(centerDistance.Normalized().x) && static_cast<int>(direction.y) == static_cast<int>(centerDistance.Normalized().y))
 				{
 					attack.Deactivate();
 					m_FreeSlots.push_back(idx);

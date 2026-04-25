@@ -74,6 +74,10 @@ private:
 	float m_BestTime;
 	float m_BestScore;
 
+	float m_MultiplierTimer;
+	float m_MultiplierTimerMax;
+	float m_Multiplier;
+
 	// Save/load helpers
 	void SaveBest();
 	void LoadBest();

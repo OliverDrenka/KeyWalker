@@ -419,7 +419,7 @@ const Tile::State Map::GetTileState(Vector2i position) const
 
 void Map::RandomizeTile(const Vector2i& position)
 {
-	const int maxValue{ 26 };
+	const int maxValue{ 36 };
 	int value{ rand() % maxValue };
 	const int cols{ m_Grid->GetNumCols() };
 	const int rows{ m_Grid->GetNumRows() };

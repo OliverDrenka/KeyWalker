@@ -40,7 +40,17 @@ void Attack::Draw() const
     {
         // Draw texture centered at m_Position (m_Position is logical center used for collisions)
         Vector2f drawPos = m_Position - Vector2f(m_Texture->GetWidth() * 0.5f, m_Texture->GetHeight() * 0.5f);
-        m_Texture->Draw(drawPos);
+		glPushMatrix();
+		{
+			const float angle = atan2(m_Direction.y, m_Direction.x)/ M_PI * 180;
+			// Translate to the sprite center, rotate, then offset by half texture so the sprite is drawn centered.
+			glTranslatef(m_Position.x, m_Position.y, 0.f);
+			glRotatef(angle, 0.f, 0.f, 1.f);
+			glTranslatef(-m_Texture->GetWidth() * 0.5f, -m_Texture->GetHeight() * 0.5f, 0.f);
+			m_Texture->Draw(Vector2f(0,0));
+
+		}
+		glPopMatrix();
     }
     else
     {
