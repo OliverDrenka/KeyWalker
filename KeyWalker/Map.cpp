@@ -391,20 +391,88 @@ const Vector2i Map::GetAdjecentTileDirection( Vector2i position, int value )
     return Vector2i(0, 0);
 }
 
-void Map::CreateRandomPointTile()
+const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 {
-	int
-		x {rand() % m_Grid->GetNumCols()},
-		y {rand() % m_Grid->GetNumRows()};
-	if (m_Grid->GetTileState(x, y) == Tile::State::normal)
+	const int cols = m_Grid->GetNumCols();
+	const int rows = m_Grid->GetNumRows();
+
+	// square distance (Chebyshev) - number of king moves between tiles
+	auto squareDist = [](const Vector2i& a, const Vector2i& b) -> int
 	{
-		m_Grid->SetTileState(x, y, Tile::State::point);
-	} 
-	else
+		return std::max(std::abs(a.x - b.x), std::abs(a.y - b.y));
+	};
+
+	// hex distance for odd-r offset coordinates:
+	// convert odd-r (col,row) to cube coords then compute cube distance
+	auto hexDist = [](const Vector2i& a, const Vector2i& b) -> int
 	{
-		CreateRandomPointTile();
+		auto oddr_to_cube = [](int col, int row, int& cx, int& cy, int& cz)
+		{
+			// odd-r to axial q,r then to cube x,y,z
+			int q = col - (row - (row & 1)) / 2;
+			int r = row;
+			cx = q;
+			cz = r;
+			cy = -cx - cz;
+		};
+
+		int ax, ay, az, bx, by, bz;
+		oddr_to_cube(a.x, a.y, ax, ay, az);
+		oddr_to_cube(b.x, b.y, bx, by, bz);
+		return (std::abs(ax - bx) + std::abs(ay - by) + std::abs(az - bz)) / 2;
+	};
+
+	const int requiredDistance = 2;
+	int attempts = 0;
+	const int maxAttempts = 200;
+
+	// Try random picks first (bounded attempts)
+	while (attempts++ < maxAttempts)
+	{
+		int x = rand() % cols;
+		int y = rand() % rows;
+		if (m_Grid->GetTileState(x, y) != Tile::State::normal) continue;
+
+		Vector2i cand(x, y);
+		int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
+		if (d >= requiredDistance)
+		{
+			m_Grid->SetTileState(x, y, Tile::State::point);
+			return Vector2i(x, y);
+		}
 	}
 
+	// Fallback: scan for any normal tile satisfying distance constraint
+	for (int ry = 0; ry < rows; ++ry)
+	{
+		for (int rx = 0; rx < cols; ++rx)
+		{
+			if (m_Grid->GetTileState(rx, ry) != Tile::State::normal) continue;
+			Vector2i cand(rx, ry);
+			int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
+			if (d >= requiredDistance)
+			{
+				m_Grid->SetTileState(rx, ry, Tile::State::point);
+				return Vector2i(rx, ry);
+			}
+		}
+	}
+
+    // Last-resort: pick any normal tile (no tile meets distance requirement)
+    for (int ry = 0; ry < rows; ++ry)
+    {
+        for (int rx = 0; rx < cols; ++rx)
+        {
+            if (m_Grid->GetTileState(rx, ry) == Tile::State::normal)
+            {
+                m_Grid->SetTileState(rx, ry, Tile::State::point);
+                return Vector2i(rx, ry);
+            }
+        }
+    }
+
+    // No normal tiles exist; return player position as fallback
+    return playerpos;
 }
 
 void Map::RemoveTileModifier(const Vector2i position)

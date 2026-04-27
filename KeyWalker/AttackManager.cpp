@@ -186,18 +186,68 @@ const bool AttackManager::IsColliding(Circlef collider, const Vector2f direction
 				radiusTotal(attack.GetRadius() + collider.radius);
 			if (centerDistance.Length() <= radiusTotal)
 			{
-				
-				attack.SetDirection(attack.GetDirection() * -1);
-				const float overlap{ radiusTotal - centerDistance.Length() };
-				if (static_cast<int>(direction.x) == static_cast<int>(centerDistance.Normalized().x) && static_cast<int>(direction.y) == static_cast<int>(centerDistance.Normalized().y))
+
+				// Determine hit vs destroy based on attack's direction relative to player
+				// If attack.GetDirection().Dot(centerDistance) > 0 => attack direction points roughly from player to attack
+				// which means the attack's velocity (-direction) points toward the player -> front collision => hit
+				// If caller supplies player's direction (movement after step), prefer it.
+				const float eps = 1e-4f;
+				Vector2f playerDir = direction.Normalized();
+				if (playerDir.Length() > eps)
 				{
+					// Use both player's movement and spatial relation to decide.
+					Vector2f vel = (-attack.GetDirection()).Normalized();
+					if (vel.Length() > eps)
+					{
+						// toPlayer = playerPos - attackPos = -centerDistance
+						Vector2f toPlayer = (-centerDistance).Normalized();
+						float moveDot = playerDir.DotProduct(vel); // player's move vs attack velocity
+						float posDot = vel.DotProduct(toPlayer);   // spatial: is player in front (posDot>0) or behind (posDot<0)
+						// Only deactivate when player moves with attack AND player is actually behind the attack
+						if (moveDot > 0.5f && posDot < 0.f)
+						{
+							attack.Deactivate();
+							m_FreeSlots.push_back(idx);
+							return false; // no damage
+						}
+						// otherwise it's a front collision -> hit
+						attack.SetDirection(attack.GetDirection() * -1);
+						const float overlap = radiusTotal - centerDistance.Length();
+						Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
+						attack.SetCenterPosition(newCenter);
+						return true;
+					}
+				}
+				// Fallback: decide from attack velocity (previous logic)
+				Vector2f vel = (-attack.GetDirection()).Normalized();
+				Vector2f toPlayer = (collider.center - attack.GetPosition()); // playerPos - attackPos
+				if (toPlayer.Length() < eps || vel.Length() < eps)
+				{
+					// ambiguous: treat as front hit
+					attack.SetDirection(attack.GetDirection() * -1);
+					const float overlap = radiusTotal - centerDistance.Length();
+					Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
+					attack.SetCenterPosition(newCenter);
+					return true;
+				}
+				Vector2f toPlayerN = toPlayer.Normalized();
+				float approach = vel.DotProduct(toPlayerN);
+				if (approach > 0.f)
+				{
+					// attack moving toward player -> front collision: hit
+					attack.SetDirection(attack.GetDirection() * -1);
+					const float overlap = radiusTotal - centerDistance.Length();
+					Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
+					attack.SetCenterPosition(newCenter);
+					return true;
+				}
+				else
+				{
+					// attack moving away from player -> player is behind -> deactivate
 					attack.Deactivate();
 					m_FreeSlots.push_back(idx);
 					return false;
 				}
-				Vector2f newCenter = attack.GetPosition() - overlap * attack.GetDirection();
-				attack.SetCenterPosition(newCenter);
-				return true;
 			}
 
 		}

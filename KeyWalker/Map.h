@@ -22,7 +22,7 @@ public:
 	const float GetHeight() const;
 	const Vector2i GetAdjecentTileDirection( Vector2i position, int value );
 	
-	void CreateRandomPointTile();
+	const Vector2i CreateRandomPointTile(const Vector2i playerpos);
 	void RemoveTileModifier(const Vector2i position);
 	const Tile::State GetTileState(Vector2i position) const;
 

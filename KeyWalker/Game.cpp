@@ -51,6 +51,9 @@ void Game::Initialize( )
 	m_Score = 0;
 	m_PointsSpawned = false;
 
+	m_MultiplierTimer = 0;
+	m_Multiplier = 1;
+
         LoadBest();
 
 
@@ -101,6 +104,17 @@ void Game::Update( float elapsedSec )
 		{
 			m_AttackTimer += elapsedSec;
 			m_TotalTime += elapsedSec;
+			if(m_MultiplierTimer > 0) 
+			{
+				m_MultiplierTimer -= elapsedSec;
+			}
+			else
+			{
+				if (m_Multiplier != 1)
+				{
+					m_Multiplier = 1;
+				}
+			}
 			if (m_AttackTimer >= 4.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
@@ -136,8 +150,8 @@ void Game::Update( float elapsedSec )
 			if (m_TotalTime > 6.f && !m_PointsSpawned)
 			{
 				m_PointsSpawned = true;
-                m_pMap->CreateRandomPointTile();
-                m_pMap->CreateRandomPointTile();
+                m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
 			}
                 m_pAttackManager->Update(elapsedSec);
             m_pPlayer->Update(elapsedSec);
@@ -150,6 +164,9 @@ void Game::Update( float elapsedSec )
 					m_GameState = GameState::end;
 				}
 			}
+
+			// Clear player's transient move direction so it only affects collisions in the frame the player moved.
+			m_pPlayer->SetDirection(Vector2i(0,0));
 			break;
 		}
 		case GameState::paused:
@@ -207,57 +224,65 @@ void Game::Draw() const
 		m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 10.f, y + 3.f), 26 + static_cast<int>(m_TotalTime) % 10);
         m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 10 % 10));
         m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 100 % 10));
-		glPushMatrix();
-		{
-
-		glScalef(0.6f, 0.6f, 1.f);
-		
-		//BestScore
-		m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth()/2- m_pBestText->GetWidth()/2 -23.f,-50 -y - 18.f));
-		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30.f -23.f,-50-y - 18.f));
-		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f -23.f, -50-1*y - 15.f), 26 + static_cast<int>(m_BestScore) % 10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f -23.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f -23.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
-		
-
-		//BestTime
-		m_pBestText->Draw(Vector2f( 10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(),-50 -y - 18.f));
-		m_pTimeText->Draw(Vector2f( 10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50-y - 18.f));
-		m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 + 10.f, -50-1*y - 15.f), 26 + static_cast<int>(m_BestTime) % 10);
-        m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 + 0.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
-        m_pLetters->DrawSprite(Vector2f(  10.f + m_pMap->GetWidth()/2 - 10.f, -50-1*y - 15.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
-		
-		}
-		glPopMatrix();
 
 
-	}
-	switch (m_GameState)
-	{
-		case GameState::start:
+
+		switch (m_GameState)
 		{
-			utils::SetColor(Color4f(0.3f, 0.3f, 0.3f, 0.6f));
-			utils::FillRect(-250, -250, 500, 500);
-			m_pStartText->Draw(Vector2f(-m_pStartText->GetWidth() / 2, -m_pStartText->GetHeight() / 2));
-			break;
-		}
-		case GameState::gameplay:
-		{
-			break;
-		}
-		case GameState::paused:
-		{
-			utils::SetColor(Color4f(0.5f, 0.5f, 0.5f, 0.6f));
-			utils::FillRect(-250, -250, 500, 500);
-			m_pPauseText->Draw(Vector2f(-m_pPauseText->GetWidth()/2, -m_pPauseText->GetHeight() / 2));
-			break;
-		}
-		case GameState::end:
-		{
-			utils::SetColor(Color4f(0.8f, 0.8f, 0.8f, 0.6f));
-			utils::FillRect(-250, -250, 500, 500);
-			m_pRestartText->Draw(Vector2f(-m_pRestartText->GetWidth()/2, -m_pRestartText->GetHeight() / 2));
-			break;
+			case GameState::start:
+			{
+				utils::SetColor(Color4f(0.3f, 0.3f, 0.3f, 0.6f));
+				utils::FillRect(-250, -250, 500, 500);
+				m_pStartText->Draw(Vector2f(-m_pStartText->GetWidth() / 2, -m_pStartText->GetHeight() / 2));
+				break;
+			}
+			case GameState::gameplay:
+			{
+				utils::SetColor(Color4f(1.f, 2.f/m_Multiplier, 0.f, 1.f));
+				const float
+					x{0},
+					yPos{-GetViewPort().height/16 - 10.f},
+					width{m_MultiplierTimer*20},
+					height{8};
+				utils::FillRect(x-width / 2, yPos -height /2, width, height);
+				break;
+			}
+			case GameState::paused:
+			{
+				utils::SetColor(Color4f(0.5f, 0.5f, 0.5f, 0.6f));
+				utils::FillRect(-250, -250, 500, 500);
+				m_pPauseText->Draw(Vector2f(-m_pPauseText->GetWidth()/2, -m_pPauseText->GetHeight() / 2));
+				glPushMatrix();
+				{
+
+					glScalef(0.6f, 0.6f, 1.f);
+
+					//BestScore
+					m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth() / 2 - m_pBestText->GetWidth() / 2 - 23.f, -50 - y - 18.f));
+					m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - 23.f, -50 - y - 18.f));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f - 23.f, -50 - 1 * y - 15.f), 26 + static_cast<int>(m_BestScore) % 10);
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f - 23.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f - 23.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
+
+
+					//BestTime
+					m_pBestText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(), -50 - y - 18.f));
+					m_pTimeText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50 - y - 18.f));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 10.f, -50 - 1 * y - 15.f), 26 + static_cast<int>(m_BestTime) % 10);
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 0.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 - 10.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
+
+				}
+				glPopMatrix();
+				break;
+			}
+			case GameState::end:
+			{
+				utils::SetColor(Color4f(0.8f, 0.8f, 0.8f, 0.6f));
+				utils::FillRect(-250, -250, 500, 500);
+				m_pRestartText->Draw(Vector2f(-m_pRestartText->GetWidth()/2, -m_pRestartText->GetHeight() / 2));
+				break;
+			}
 		}
 	}
 	glPopMatrix();
@@ -301,10 +326,15 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
             }
             if (m_pMap->GetTileState(m_pPlayer->GetPosition()) == Tile::State::point)
             {
-                m_Score += 1;
+                m_Score += m_Multiplier;
+				m_Multiplier++;
+				Vector2i length = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+
+				float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
+				std::cout << std::endl << m_pPlayer->GetPosition().x << ", " << m_pPlayer->GetPosition().y << "  - " << length.x <<", " << length.y << " - " << dist << std::endl;
+				m_MultiplierTimer += dist /2.25f;
                 m_pSoundPointCollected->Play(0);
                 m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
-                m_pMap->CreateRandomPointTile();
             }
 			break;
 		}
