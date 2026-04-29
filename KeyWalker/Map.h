@@ -26,6 +26,14 @@ public:
 	void RemoveTileModifier(const Vector2i position);
 	const Tile::State GetTileState(Vector2i position) const;
 
+	const float GetScale();
+
+	const int GetMaxValue();
+	void SetMaxValue(const int maxValue);
+	const int GetMinValue();
+	void SetMinValue(const int minValue);
+
+
 	void RandomizeTile(const Vector2i& position);
 
 	void GenerateMapOrdered();
@@ -38,7 +46,10 @@ private:
 	SpriteSheet* m_Letters;
 	Texture* m_TileTexture;
 	float m_TileSize;
+	float m_Scale;
 
+	int m_MaxValue;
+	int m_MinValue;
     bool m_IsHexMode;
     // persistent visibility mask from previous frame
     std::vector<char> m_PrevVisible;

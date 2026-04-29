@@ -115,13 +115,16 @@ void Game::Update( float elapsedSec )
 					m_Multiplier = 1;
 				}
 			}
+			if (static_cast<int>(m_TotalTime) == 45)
+			{
+				m_pMap->SetMaxValue(36);
+			}
 			if (m_AttackTimer >= 4.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
 				if (m_AttackSpawnTime > 5.f)
 				{
 					m_AttackSpawnTime -= 0.5f;
-					std::cout << m_AttackSpawnTime;
 				}
                 bool isHex = m_pMap->IsHexMode();
                // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
@@ -178,7 +181,7 @@ void Game::Update( float elapsedSec )
 			m_pPlayer->Update(elapsedSec);
 			break;
 		}
-
+		
 	}
 
 
@@ -242,7 +245,7 @@ void Game::Draw() const
 				const float
 					x{0},
 					yPos{-GetViewPort().height/16 - 10.f},
-					width{m_MultiplierTimer*20},
+					width{m_MultiplierTimer * 30},
 					height{8};
 				utils::FillRect(x-width / 2, yPos -height /2, width, height);
 				break;
@@ -331,7 +334,6 @@ void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 				Vector2i length = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
 
 				float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
-				std::cout << std::endl << m_pPlayer->GetPosition().x << ", " << m_pPlayer->GetPosition().y << "  - " << length.x <<", " << length.y << " - " << dist << std::endl;
 				m_MultiplierTimer += dist /2.25f;
                 m_pSoundPointCollected->Play(0);
                 m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());

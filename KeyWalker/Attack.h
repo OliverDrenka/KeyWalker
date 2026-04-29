@@ -26,6 +26,7 @@ public:
 	void SetDirection( Vector2f direction );
 	void SetRadius( float radius );
 	void SetSpeed( float speed );
+	void SetScale( float scale );
 	void Deactivate();
 
 	const bool IsActive() const;
@@ -38,8 +39,8 @@ private:
 	Texture* m_Texture;
 	Vector2f m_Position;
 	Vector2f m_Direction;
-	float m_Speed;
-	const float m_Radius;
+    float m_Speed;
+    float m_Radius;
 	float m_Scale;
 	float m_LifeTime;
 	bool m_Active;

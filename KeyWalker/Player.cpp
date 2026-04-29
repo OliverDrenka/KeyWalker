@@ -27,27 +27,34 @@ Player::~Player()
 
 void Player::Draw(const float tileSize, bool hexMode) const
 {	
+    // Draw player at native sprite size, centered inside the tile (original behavior)
+    // scale player so base 16px -> tile scaling; keep centering offsets
+    const float baseTile = 16.f;
+    const float playerScale = tileSize / baseTile;
+    const float playerW = m_SpriteSheet->GetSpriteWidth();
+    const float playerH = m_SpriteSheet->GetSpriteHeight();
+    const float playerDestW = playerW * playerScale;
+    const float playerDestH = playerH * playerScale;
+
     if (!hexMode)
     {
-        // For square grid, m_Position represents tile coords; compute center and draw sprite centered
         Vector2f center{ m_Position.x * tileSize + tileSize * 0.5f, m_Position.y * tileSize + tileSize * 0.5f };
-        Vector2f drawPos{ center.x - m_SpriteSheet->GetSpriteWidth() * 0.5f, center.y - m_SpriteSheet->GetSpriteHeight() * 0.5f };
-        m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx, std::max(m_Hp - 1, 0));
+        Vector2f drawPos{ center.x - (playerDestW * 0.5f), center.y - (playerDestH * 0.5f) };
+        m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx, std::max(m_Hp - 1, 0), playerDestW, playerDestH);
     }
     else
     {
-        // odd-r horizontal hex layout: use same offsets as Map::Draw
-		const float xOffset = tileSize * 0.5f;
+        const float xOffset = tileSize * 0.5f;
 
-		float x = m_Position.x * tileSize + ((m_Position.y & 1) ? xOffset : 0.0f);
-		float y = m_Position.y * tileSize; // <-- keep square spacing
+        float x = m_Position.x * tileSize + ((m_Position.y & 1) ? xOffset : 0.0f);
+        float y = m_Position.y * tileSize; // <-- keep square spacing
 
-		const Vector2f position{
-			x + (tileSize - m_SpriteSheet->GetSpriteWidth()) / 2,
-			y + (tileSize - m_SpriteSheet->GetSpriteHeight()) / 2
-		};
+        const Vector2f position{
+            x + (tileSize - playerDestW) / 2,
+            y + (tileSize - playerDestH) / 2
+        };
 
-		m_SpriteSheet->DrawSprite(position, m_SpriteIdx, std::max(m_Hp - 1,0));
+        m_SpriteSheet->DrawSprite(position, m_SpriteIdx, std::max(m_Hp - 1, 0), playerDestW, playerDestH);
     }
 }
 void Player::Update(const float deltaTime)
@@ -115,7 +122,7 @@ const Circlef Player::GetBounds(const float tileSize, bool hexMode)
 	float y = m_Position.y * tileSize   // <-- no 0.866 factor
 		+ tileSize / 2.f;
 
-	Circlef bounds{ x, y, m_Radius };
+    Circlef bounds{ x, y, m_Radius };
 	return bounds;
 }
 void Player::SetDirection(Vector2i direction)

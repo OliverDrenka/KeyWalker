@@ -79,6 +79,7 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 {
     // gapSize is expected to be tileSize * 2 by callers; derive tileSize
     const float tileSize = gapSize * 0.5f;
+    const float attackScale = tileSize / 16.f; // base texture assumed 16px -> scale to tile
     const int numCols = std::max(1, static_cast<int>(std::round(mapWidth / tileSize)));
     const int numRows = std::max(1, static_cast<int>(std::round(mapHeight / tileSize)));
 
@@ -127,6 +128,8 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 
                 attack->SetCenterPosition(spawnCenter);
                 attack->SetDirection(-nd);
+                attack->SetScale(attackScale);
+                attack->SetRadius(tileSize * 0.25f);
             }
         }
         else
@@ -162,6 +165,8 @@ void AttackManager::SpawnAlteratingAttack(const float amount, const float gapSiz
 
                 attack->SetCenterPosition(spawnCenter);
                 attack->SetDirection(-nd);
+                attack->SetScale(attackScale);
+                attack->SetRadius(tileSize * 0.25f);
             }
         }
     };
@@ -181,7 +186,7 @@ const bool AttackManager::IsColliding(Circlef collider, const Vector2f direction
 		if (attack.IsActive())
 		{
 			const Vector2f
-				centerDistance(attack.GetPosition() - collider.center);
+				centerDistance((attack.GetPosition())- collider.center);
 			const float
 				radiusTotal(attack.GetRadius() + collider.radius);
 			if (centerDistance.Length() <= radiusTotal)
@@ -204,12 +209,36 @@ const bool AttackManager::IsColliding(Circlef collider, const Vector2f direction
 						float moveDot = playerDir.DotProduct(vel); // player's move vs attack velocity
 						float posDot = vel.DotProduct(toPlayer);   // spatial: is player in front (posDot>0) or behind (posDot<0)
 						// Only deactivate when player moves with attack AND player is actually behind the attack
-						if (moveDot > 0.5f && posDot < 0.f)
-						{
-							attack.Deactivate();
-							m_FreeSlots.push_back(idx);
-							return false; // no damage
-						}
+                        // If the player is moving roughly in the same direction as the attack (i.e. "from behind"),
+                        // count this as a non-damaging pass-through even if the player's center ends up slightly ahead
+                        // of the attack due to stepping. The previous check also required posDot<0, but that made
+                        // some behind passes register as hits when the final positions flipped; prefer the movement
+                        // direction as the primary indicator.
+                        // Only treat as a pass-through if player moved with the attack AND
+                        // the player's previous center (before this movement) was behind the attack.
+                        // This avoids false positives when the player's final center ends up in front
+                        // of the attack due to stepping.
+                        if (moveDot > 0.5f)
+                        {
+                            const float moveLen = direction.Length();
+                            if (moveLen > eps)
+                            {
+                                Vector2f prevCenter = collider.center - direction; // approximate previous center
+                                Vector2f prevToAttack = attack.GetPosition() - prevCenter;
+                                if (prevToAttack.Length() > eps)
+                                {
+                                    float prevPosDot = vel.DotProduct(prevToAttack.Normalized());
+                                    if (prevPosDot < 0.f)
+                                    {
+                                        // player was behind and moved with the attack -> pass-through
+                                        attack.Deactivate();
+                                        m_FreeSlots.push_back(idx);
+                                        return false;
+                                    }
+                                }
+                            }
+                            // otherwise fall through and treat as a hit
+                        }
 						// otherwise it's a front collision -> hit
 						attack.SetDirection(attack.GetDirection() * -1);
 						const float overlap = radiusTotal - centerDistance.Length();

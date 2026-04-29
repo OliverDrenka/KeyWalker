@@ -31,7 +31,26 @@ void SpriteSheet::DrawSprite( Vector2f position, int spriteIdx, int row )
 			GetSpriteHeight()
 			};
 
-	m_SpriteSheet->Draw(position, srcRect);
+    m_SpriteSheet->Draw(position, srcRect);
+}
+
+void SpriteSheet::DrawSprite(Vector2f position, int spriteIdx, int row, float destWidth, float destHeight)
+{
+    Rectf
+        srcRect {
+            spriteIdx * m_SpriteWidth,
+            row * m_SpriteHeight,
+            m_SpriteWidth,
+            GetSpriteHeight()
+        };
+
+    Rectf dstRect{ position.x, position.y, destWidth, destHeight };
+    m_SpriteSheet->Draw(dstRect, srcRect);
+}
+
+void SpriteSheet::DrawSprite(Vector2f position, int spriteIdx, int row, float destSize)
+{
+    DrawSprite(position, spriteIdx, row, destSize, destSize);
 }
 
 const float SpriteSheet::GetSpriteHeight()

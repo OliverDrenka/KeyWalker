@@ -3,19 +3,23 @@
 #include <fstream>
 #include <iostream>
 #include "utils.h"
+#include <cmath>
 #include <algorithm>
 #include <vector>
 #include <deque>
 
 
-Map::Map()
+Map::Map() 
+	: m_MaxValue{25}
+	, m_MinValue{ 0 }
 {
-    m_Grid = new Grid(10, 6);
     m_Letters = new SpriteSheet(36, "Font.png", 4);
     m_TileTexture = new Texture("Tile.png");
-    m_TileSize = m_TileTexture->GetWidth();
+	m_TileSize = 16;
     m_IsHexMode = false;
-    // initialize previous visibility mask
+    // initialize previous visibility mask 
+	m_Scale = 16.f / m_TileSize;
+    m_Grid = new Grid(10 * m_Scale, 6 * m_Scale);
     m_PrevVisible.assign(m_Grid->GetNumCols() * m_Grid->GetNumRows(), 0);
 }
 
@@ -43,8 +47,16 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 		numRows{ m_Grid->GetNumRows() };
     // default positions for square layout
     Vector2f tilePosition{ position.x, position.y };
-    Vector2f letterPosition{ position.x + (m_Letters->GetSpriteWidth() / 2.f) - 1.5f,
-                             position.y + (m_Letters->GetSpriteHeight() / 2.f) };
+    // scale letters so their base 10px size scales with tile (base tile = 16px)
+    const float baseTile = 16.f;
+    const float letterScale = m_TileSize / baseTile;
+    const float letterW = m_Letters->GetSpriteWidth();
+    const float letterH = m_Letters->GetSpriteHeight();
+    const float letterDestW = letterW * letterScale;
+    const float letterDestH = letterH * letterScale;
+    // keep the existing offsets but scale them so the relative placement remains
+    Vector2f letterPosition{ position.x + ((letterW / 2.f) - 1.5f) * letterScale,
+                             position.y + (letterH / 2.f) * letterScale };
 
     // Precompute visibility mask if player position given
     std::vector<char> visible;
@@ -239,7 +251,9 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
         {
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
-                m_TileTexture->Draw(tilePosition);
+                // draw tile texture scaled to the current tile size
+                m_TileTexture->Draw(Rectf{ tilePosition.x, tilePosition.y, m_TileSize, m_TileSize });
+
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
                 // newly visible? randomize tile
@@ -249,7 +263,11 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 }
                 if (showLetter)
                 {
-                    m_Letters->DrawSprite(letterPosition, m_Grid->GetTileValue(colIdx, rowIdx), static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
+                    // draw letters scaled to the tile using the computed destination size
+                    m_Letters->DrawSprite(letterPosition,
+                        m_Grid->GetTileValue(colIdx, rowIdx),
+                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)),
+                        letterDestW, letterDestH);
                 }
                 else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
                 {
@@ -281,10 +299,11 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 float y = position.y + rowIdx * m_TileSize; // <-- IMPORTANT: no compression
 
                 Vector2f tp{ x, y };
-                Vector2f lp{ x + (m_Letters->GetSpriteWidth() / 2.f) - 1.5f,
-                             y + (m_Letters->GetSpriteHeight() / 2.f) };
+                Vector2f lp{ x + ((m_Letters->GetSpriteWidth() / 2.f) - 1.5f) * letterScale,
+                             y + (m_Letters->GetSpriteHeight() / 2.f) * letterScale };
 
-                m_TileTexture->Draw(tp);
+                // draw tile texture scaled to tile size
+                m_TileTexture->Draw(Rectf{ tp.x, tp.y, m_TileSize, m_TileSize });
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
                 // newly visible? randomize tile
@@ -296,7 +315,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 {
                     m_Letters->DrawSprite(lp,
                         m_Grid->GetTileValue(colIdx, rowIdx),
-                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)));
+                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)), letterDestW, letterDestH);
                 }
                 else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
                 {
@@ -485,10 +504,34 @@ const Tile::State Map::GetTileState(Vector2i position) const
 	return m_Grid->GetTileState(position.x, position.y);
 }
 
+const float Map::GetScale()
+{
+	return m_Scale;
+}
+
+const int Map::GetMaxValue()
+{
+	return m_MaxValue;
+}
+
+void Map::SetMaxValue(const int maxValue)
+{
+	m_MaxValue = maxValue;
+}
+
+const int Map::GetMinValue()
+{
+	return m_MinValue;
+}
+
+void Map::SetMinValue(const int minValue)
+{
+	m_MinValue = minValue;
+}
+
 void Map::RandomizeTile(const Vector2i& position)
 {
-	const int maxValue{ 36 };
-	int value{ rand() % maxValue };
+	int value{ (rand() % (m_MaxValue - m_MinValue) + m_MinValue) % m_MaxValue };
 	const int cols{ m_Grid->GetNumCols() };
 	const int rows{ m_Grid->GetNumRows() };
 
@@ -603,8 +646,10 @@ void Map::RandomizeTile(const Vector2i& position)
 
     // Build list of all valid candidates and pick one uniformly at random.
     std::vector<int> candidates;
-    candidates.reserve(maxValue);
-    for (int v = 0; v < maxValue; ++v)
+	const int
+		max{ m_MaxValue - m_MinValue };
+    candidates.reserve(max);
+    for (int v = m_MinValue; v < m_MaxValue; ++v)
     {
         if (IsValidForNeighbors(v)) candidates.push_back(v);
     }
@@ -618,9 +663,9 @@ void Map::RandomizeTile(const Vector2i& position)
     {
         // Fallback to original incremental scan if no candidate found (should be rare)
         int attempts = 0;
-        while (!IsValidForNeighbors(value) && attempts < maxValue)
+        while (!IsValidForNeighbors(value) && attempts < m_MaxValue)
         {
-            value = (value + 1) % maxValue;
+            value = (value + 1) % m_MaxValue;
             ++attempts;
         }
         m_Grid->SetTile(position.x, position.y, value);
@@ -674,13 +719,71 @@ void Map::GenerateMapRandom()
 		}
 	}
 
-    // Place vision tiles at: 3rd and 8th tile in the 2nd and 5th row
-    // (using 0-based indices: columns 2 and 7; rows 1 and 4)
-    if (m_Grid->GetNumCols() > 7 && m_Grid->GetNumRows() > 4)
+    // Place vision tiles by repeating the original 2x2 pattern across the grid
+    // using the original tile gaps so the amount of vision markers scales with grid size.
+    // Original pattern: columns starting at 2 with gap 5 -> 2,7,... ; rows starting at 1 with gap 3 -> 1,4,...
+    const int numColsV = m_Grid->GetNumCols();
+    const int numRowsV = m_Grid->GetNumRows();
+    if (numColsV > 0 && numRowsV > 0)
     {
-        m_Grid->SetTileState(2, 1, Tile::State::vision);
-        m_Grid->SetTileState(7, 1, Tile::State::vision);
-        m_Grid->SetTileState(2, 4, Tile::State::vision);
-        m_Grid->SetTileState(7, 4, Tile::State::vision);
+        const int colGap = 5; // original column repetition gap
+        const int rowGap = 3; // original row repetition gap
+
+        // Choose column offset in [0,colGap-1] that centers the pattern best
+        std::vector<int> bestCols;
+        float bestColScore = std::numeric_limits<float>::infinity();
+        const float gridColCenter = (numColsV - 1) * 0.5f;
+        for (int offset = 0; offset < colGap; ++offset)
+        {
+            std::vector<int> cols;
+            for (int c = offset; c < numColsV; c += colGap) cols.push_back(c);
+            if (cols.empty()) continue;
+            float center = (cols.front() + cols.back()) * 0.5f;
+            float score = std::abs(center - gridColCenter);
+            if (score < bestColScore)
+            {
+                bestColScore = score;
+                bestCols = cols;
+            }
+        }
+
+        // Choose row offset in [0,rowGap-1] that centers the pattern best
+        std::vector<int> bestRows;
+        float bestRowScore = std::numeric_limits<float>::infinity();
+        const float gridRowCenter = (numRowsV - 1) * 0.5f;
+        for (int offset = 0; offset < rowGap; ++offset)
+        {
+            std::vector<int> rows;
+            for (int r = offset; r < numRowsV; r += rowGap) rows.push_back(r);
+            if (rows.empty()) continue;
+            float center = (rows.front() + rows.back()) * 0.5f;
+            float score = std::abs(center - gridRowCenter);
+            if (score < bestRowScore)
+            {
+                bestRowScore = score;
+                bestRows = rows;
+            }
+        }
+
+        // If we didn't find any (shouldn't happen), fallback to simple starts
+        if (bestCols.empty())
+        {
+            for (int c = 0; c < numColsV; c += colGap) bestCols.push_back(c);
+            if (bestCols.empty()) bestCols.push_back(0);
+        }
+        if (bestRows.empty())
+        {
+            for (int r = 0; r < numRowsV; r += rowGap) bestRows.push_back(r);
+            if (bestRows.empty()) bestRows.push_back(0);
+        }
+
+        // Set vision tiles for all combinations of chosen columns and rows
+        for (int c : bestCols)
+        {
+            for (int r : bestRows)
+            {
+                m_Grid->SetTileState(c, r, Tile::State::vision);
+            }
+        }
     }
 }
