@@ -1,6 +1,7 @@
 #pragma once
 #include "Grid.h"
 #include "SpriteSheet.h"
+#include "Vector2f.h"
 #include "Vector2i.h"
 #include <vector>
 
@@ -17,12 +18,16 @@ public:
     // If pPlayerPosition is non-null, restrict letter drawing to tiles visible from that position
     void Draw( Vector2f position = Vector2f(0,0), const Vector2i* pPlayerPosition = nullptr );
 
+    // Draw the letter for a single tile at grid coordinates 'position' (col,row).
+    void DrawLetter(const Vector2i position, const int colorOffest = 0);
+
 	const float GetTileSize() const;
 	const float GetWidth() const;
 	const float GetHeight() const;
 	const Vector2i GetAdjecentTileDirection( Vector2i position, int value );
 	
 	const Vector2i CreateRandomPointTile(const Vector2i playerpos);
+	void SetTileState(const Vector2i playerpos, const Tile::State state);
 	void RemoveTileModifier(const Vector2i position);
 	const Tile::State GetTileState(Vector2i position) const;
 
@@ -42,6 +47,9 @@ public:
 
 
 private:
+    // Origin passed to Draw() used by DrawLetter to compute world positions
+    Vector2f m_DrawOrigin{0.f, 0.f};
+
     Grid* m_Grid;
 	SpriteSheet* m_Letters;
 	Texture* m_TileTexture;

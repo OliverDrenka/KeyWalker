@@ -85,8 +85,12 @@ void Player::Move(Vector2i direction)
 
 void Player::Hit(const float damage)
 {
-	m_Hp -= damage;
-	m_SpriteIdx = 1;
+	if (m_Hp > 0)
+	{
+		m_Hp -= damage;
+		m_SpriteIdx = 1;
+
+	}
 }
 
 const int Player::GetHp() const

@@ -16,3 +16,8 @@ bool Vector2i::operator!=(const Vector2i& rhs) const
 {
 	return this->x != rhs.x || this->y != rhs.y;
 }
+
+bool Vector2i::operator==(const Vector2i& rhs) const
+{
+    return this->x == rhs.x && this->y == rhs.y;
+}

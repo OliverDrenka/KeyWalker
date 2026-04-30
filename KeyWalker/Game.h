@@ -33,6 +33,7 @@ private:
 	void Cleanup();
 	void ClearBackground() const;
 
+
 	enum class GameState
 	{
 		start,
@@ -46,6 +47,8 @@ private:
     Texture* m_pOverlay;
     AttackManager* m_pAttackManager;
     SpriteSheet* m_pLetters;
+
+	std::vector<Vector2i> m_vecDangerTiles;
 
 	TTF_Font* m_pFont;
 	Texture* m_pStartText;
@@ -64,6 +67,7 @@ private:
 	
 	bool m_PointsSpawned;
 
+	SoundEffect* m_pSoundPreparedTile;
     SoundEffect* m_pSoundButtonPress;
     SoundEffect* m_pSoundHit;
     SoundEffect* m_pSoundPointSpawn;
@@ -76,6 +80,8 @@ private:
 
 	float m_MultiplierTimer;
 	int m_Multiplier;
+
+	bool m_TimerStarted;
 
 	// Save/load helpers
 	void SaveBest();

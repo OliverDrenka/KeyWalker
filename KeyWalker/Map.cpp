@@ -13,7 +13,7 @@ Map::Map()
 	: m_MaxValue{25}
 	, m_MinValue{ 0 }
 {
-    m_Letters = new SpriteSheet(36, "Font.png", 4);
+    m_Letters = new SpriteSheet(36, "Font.png", 5);
     m_TileTexture = new Texture("Tile.png");
 	m_TileSize = 16;
     m_IsHexMode = false;
@@ -21,6 +21,47 @@ Map::Map()
 	m_Scale = 16.f / m_TileSize;
     m_Grid = new Grid(10 * m_Scale, 6 * m_Scale);
     m_PrevVisible.assign(m_Grid->GetNumCols() * m_Grid->GetNumRows(), 0);
+}
+
+// Draw the letter for a single tile at grid coordinates 'position' (col,row).
+void Map::DrawLetter(const Vector2i position, const int colorOffest)
+{
+    const int cols = m_Grid->GetNumCols();
+    const int rows = m_Grid->GetNumRows();
+    if (position.x < 0 || position.x >= cols || position.y < 0 || position.y >= rows) return;
+
+    // compute scaled letter drawing metrics (match Draw())
+    const float baseTile = 16.f;
+    const float letterScale = m_TileSize / baseTile;
+    const float letterW = m_Letters->GetSpriteWidth();
+    const float letterH = m_Letters->GetSpriteHeight();
+    const float letterDestW = letterW * letterScale;
+    const float letterDestH = letterH * letterScale;
+
+    // compute tile top-left in world coordinates for square layout
+    if (!m_IsHexMode)
+    {
+        Vector2f tilePos{ m_DrawOrigin.x + position.x * m_TileSize, m_DrawOrigin.y + position.y * m_TileSize };
+        Vector2f letterPos{ tilePos.x + ((letterW / 2.f) - 1.5f) * letterScale,
+                             tilePos.y + (letterH / 2.f) * letterScale };
+        m_Letters->DrawSprite(letterPos,
+            m_Grid->GetTileValue(position.x, position.y),
+            static_cast<int>(m_Grid->GetTileState(position.x, position.y)) + colorOffest,
+            letterDestW, letterDestH);
+    }
+    else
+    {
+        // hex layout (odd-r horizontal) positioning
+        const float xOffset = m_TileSize * 0.5f;
+        float x = m_DrawOrigin.x + position.x * m_TileSize + ((position.y & 1) ? xOffset : 0.0f);
+        float y = m_DrawOrigin.y + position.y * m_TileSize; // no compression
+        Vector2f lp{ x + ((m_Letters->GetSpriteWidth() / 2.f) - 1.5f) * letterScale,
+                     y + (m_Letters->GetSpriteHeight() / 2.f) * letterScale };
+        m_Letters->DrawSprite(lp,
+            m_Grid->GetTileValue(position.x, position.y),
+            static_cast<int>(m_Grid->GetTileState(position.x, position.y)),
+            letterDestW, letterDestH);
+    }
 }
 
 Map::~Map()
@@ -42,6 +83,9 @@ bool Map::IsHexMode() const
 
 void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 {
+    // remember origin for DrawLetter
+    m_DrawOrigin = position;
+
 	const int
 		numCols{ m_Grid->GetNumCols() },
 		numRows{ m_Grid->GetNumRows() };
@@ -263,21 +307,45 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 }
                 if (showLetter)
                 {
-                    // draw letters scaled to the tile using the computed destination size
-                    m_Letters->DrawSprite(letterPosition,
-                        m_Grid->GetTileValue(colIdx, rowIdx),
-                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)),
-                        letterDestW, letterDestH);
+                    // draw letters for this tile
+                    DrawLetter(Vector2i(colIdx, rowIdx));
                 }
-                else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
-                {
-                    // draw a small golden marker at tile center to indicate point location
-                    Vector2f center = tilePosition + Vector2f(m_TileSize * 0.5f, m_TileSize * 0.5f);
-                    const float radius = m_TileSize * 0.25f;
-                    utils::SetColor(Color4f(1.0f, 0.84f, 0.0f, 1.0f));
-                    utils::FillEllipse(center, radius, radius);
-                    utils::SetColor(Color4f(1.f, 1.f, 1.f, 1.f));
-                }
+				else
+				{
+					Vector2f center = tilePosition + Vector2f(m_TileSize * 0.5f, m_TileSize * 0.5f);
+					const float radius = m_TileSize * 0.25f;
+					utils::SetColor(Color4f(1.0f, 1.f, 1.0f, 0.0f));
+					switch (m_Grid->GetTileState(colIdx, rowIdx))
+					{
+						case(Tile::State::point):
+						{
+							utils::SetColor(Color4f(1.0f, 0.84f, 0.0f, 1.0f));
+							break;
+						}
+						case(Tile::State::danger):
+						{
+							utils::SetColor(Color4f(1.0f, 0.0f, 0.0f, 1.0f));
+							break;
+						}
+						case(Tile::State::preparing):
+						{
+							utils::SetColor(Color4f(142.f / 255.f, 91.f / 255.f, 91.f / 255.f, 1.0f));
+							break;
+						}
+						case(Tile::State::normal):
+						{
+							utils::SetColor(Color4f(0.0f, 0.0f, 0.0f, 0.0f));
+							break;
+						}
+						case(Tile::State::vision):
+						{
+							utils::SetColor(Color4f(10.f/255.f, 222.f/255.f, 241.f/255.f, 1.0f));
+							break;
+						}
+					}
+					utils::FillEllipse(center, radius, radius);
+				}
+
                 tilePosition.x += m_TileSize;
                 letterPosition.x += m_TileSize;
             }
@@ -313,9 +381,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 }
                 if (showLetter)
                 {
-                    m_Letters->DrawSprite(lp,
-                        m_Grid->GetTileValue(colIdx, rowIdx),
-                        static_cast<int>(m_Grid->GetTileState(colIdx, rowIdx)), letterDestW, letterDestH);
+                    DrawLetter(Vector2i(colIdx, rowIdx));
                 }
                 else if (m_Grid->GetTileState(colIdx, rowIdx) == Tile::State::point)
                 {
@@ -492,6 +558,11 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 
     // No normal tiles exist; return player position as fallback
     return playerpos;
+}
+
+void Map::SetTileState(const Vector2i playerpos, const Tile::State state)
+{
+	m_Grid->SetTileState(playerpos.x, playerpos.y, state);
 }
 
 void Map::RemoveTileModifier(const Vector2i position)

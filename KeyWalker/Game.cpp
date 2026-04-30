@@ -31,14 +31,16 @@ void Game::Initialize( )
     m_pPlayer = new Player();
     m_pOverlay = new Texture("Overlay.png");
     m_pAttackManager = new AttackManager();
-    m_pLetters = new SpriteSheet(36, "Font.png", 4);
+    m_pLetters = new SpriteSheet(36, "Font.png", 5);
 
     m_pSoundButtonPress = new SoundEffect("ButtonPress.wav");
     m_pSoundHit = new SoundEffect("Hit.wav");
     m_pSoundPointSpawn = new SoundEffect("PointSpawn.wav");
     m_pSoundPointCollected = new SoundEffect("PointCollected.wav");
+	m_pSoundPreparedTile = new SoundEffect("PreparedTile.wav");
 
     m_pSoundButtonPress->SetVolume(50);
+    m_pSoundPreparedTile->SetVolume(50);
     m_pSoundHit->SetVolume(40);
     m_pSoundPointCollected->SetVolume(25);
 
@@ -52,9 +54,10 @@ void Game::Initialize( )
 	m_PointsSpawned = false;
 
 	m_MultiplierTimer = 0;
-	m_Multiplier = 1;
-
-        LoadBest();
+	m_Multiplier = 1.f;
+	m_TimerStarted = false;
+	m_vecDangerTiles.reserve(static_cast<int>(11 * m_pMap->GetScale()));
+    LoadBest();
 
 
 }
@@ -71,7 +74,8 @@ void Game::Cleanup( )
     delete m_pSoundHit;
     delete m_pSoundPointSpawn;
     delete m_pSoundPointCollected;
-	
+	delete m_pSoundPreparedTile;
+
 	delete m_pRestartText;
 	delete m_pPauseText;
 	delete m_pStartText;
@@ -80,6 +84,8 @@ void Game::Cleanup( )
 	delete m_pHpText;
     delete m_pBestText;
 	TTF_CloseFont( m_pFont );
+	m_vecDangerTiles.clear();
+	m_vecDangerTiles.shrink_to_fit();
 }
 
 void Game::Update( float elapsedSec )
@@ -110,14 +116,20 @@ void Game::Update( float elapsedSec )
 			}
 			else
 			{
+				if (m_TimerStarted)
+				{
+					m_pPlayer->Hit(3);
+				}
+				/*
 				if (m_Multiplier != 1)
 				{
 					m_Multiplier = 1;
 				}
+				*/
 			}
-			if (static_cast<int>(m_TotalTime) == 45)
+			if (m_pMap->GetMaxValue() < 36 )
 			{
-				m_pMap->SetMaxValue(36);
+				m_pMap->SetMaxValue(15 + static_cast<int>(m_TotalTime/5));
 			}
 			if (m_AttackTimer >= 4.f) 
 			{
@@ -126,7 +138,9 @@ void Game::Update( float elapsedSec )
 				{
 					m_AttackSpawnTime -= 0.5f;
 				}
+				m_Multiplier += 0.1f;
                 bool isHex = m_pMap->IsHexMode();
+				/*
                // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
                // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-0.5f, -1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
                 // Spawn attacks for two principal axes; AttackManager will also spawn from the opposite
@@ -149,6 +163,7 @@ void Game::Update( float elapsedSec )
 				//   m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
               //  m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
 				m_pAttackManager->IncreaseAttackSpeed();
+				*/
 			}
 			if (m_TotalTime > 6.f && !m_PointsSpawned)
 			{
@@ -162,10 +177,10 @@ void Game::Update( float elapsedSec )
 			{
                 m_pPlayer->Hit(1);
                 m_pSoundHit->Play(0);
-				if (m_pPlayer->GetHp() <= 0)
-				{
-					m_GameState = GameState::end;
-				}
+			}
+			if (m_pPlayer->GetHp() <= 0)
+			{
+				m_GameState = GameState::end;
 			}
 
 			// Clear player's transient move direction so it only affects collisions in the frame the player moved.
@@ -202,6 +217,17 @@ void Game::Draw() const
             glTranslatef(-m_pMap->GetWidth() / 2, -m_pMap->GetHeight() / 2, 0.f);
             Vector2i playerTile = m_pPlayer->GetPosition();
             m_pMap->Draw(Vector2f(0.f, 0.f), &playerTile);
+			const float
+				tileSize{m_pMap->GetTileSize()};
+			for (int i{ 0 }; i < m_vecDangerTiles.size(); i++)
+			{
+				const Vector2i position{ m_vecDangerTiles [i]};
+				const float
+					x{i + 1.f},
+					y{1.f};
+				utils::SetColor(Color4f(1.f, 0.f, 0.f, 1.f));
+				utils::FillRect(position.x*tileSize- x/2 + tileSize/2, position.y*tileSize + y/2, x, y);
+			}
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
 			m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 2 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 2 + m_pMap->GetHeight() / 2));
             m_pAttackManager->Draw();
@@ -292,77 +318,170 @@ void Game::Draw() const
 
 }
 
-void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
+void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 {
-	switch (m_GameState)
-	{
-		case GameState::start:
-		{
-			if (e.keysym.sym == 115)
-			{
-				m_GameState = GameState::gameplay;
-				break;
-			}
-		}
-		case GameState::gameplay:
-		{
-			int value{ e.keysym.sym };
-			if (value == 27)
-			{
-				m_GameState = GameState::paused;
-				break;
-			}
-			if (value >= 48 && value <= 57)
-			{
-				value -= 22;
-			}
-			else
-			{
-				value -= 97;
-			}
-			//m_Map->RandomizeTile(m_Player->GetPosition());
-            Vector2i movement{ m_pMap->GetAdjecentTileDirection(m_pPlayer->GetPosition(), value) };
-            if (movement != Vector2i(0, 0))
-            {
-                m_pSoundButtonPress->Play(0);
-                m_pPlayer->Move(movement);
-            }
-            if (m_pMap->GetTileState(m_pPlayer->GetPosition()) == Tile::State::point)
-            {
-                m_Score += m_Multiplier;
-				m_Multiplier++;
-				Vector2i length = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
 
-				float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
-				m_MultiplierTimer += dist /2.25f;
-                m_pSoundPointCollected->Play(0);
-                m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
+    switch (m_GameState)
+    {
+    case GameState::start:
+    {
+        // Use layout-aware keycode so AZERTY 's' works
+        if (e.keysym.sym == SDLK_s)
+        {
+            m_GameState = GameState::gameplay;
+            break;
+        }
+    }
+    case GameState::gameplay:
+    {
+        // Prefer layout-aware keycode, fallback to scancode when needed
+        SDL_Keycode key = e.keysym.sym;
+        SDL_Scancode sc = e.keysym.scancode;
+
+        if (key == SDLK_ESCAPE)
+        {
+            m_GameState = GameState::paused;
+            break;
+        }
+
+        int value = -1;
+        if (key >= SDLK_a && key <= SDLK_z)
+        {
+            value = static_cast<int>(key - SDLK_a); // a..z -> 0..25
+        }
+        else if (key >= SDLK_0 && key <= SDLK_9)
+        {
+            value = 26 + static_cast<int>(key - SDLK_0); // 0..9 -> 26..35
+        }
+        else if (key >= SDLK_KP_0 && key <= SDLK_KP_9)
+        {
+            value = 26 + static_cast<int>(key - SDLK_KP_0);
+        }
+
+        // Fallback: use physical scancode mapping
+        if (value < 0)
+        {
+            if (sc >= SDL_SCANCODE_A && sc <= SDL_SCANCODE_Z)
+            {
+                value = static_cast<int>(sc - SDL_SCANCODE_A);
             }
-			break;
-		}
-		case GameState::paused:
-		{
-			if (e.keysym.sym == 27)
+            else if (sc >= SDL_SCANCODE_1 && sc <= SDL_SCANCODE_9)
+            {
+                value = 26 + static_cast<int>(sc - SDL_SCANCODE_1); // 1..9 -> 26..34
+            }
+            else if (sc == SDL_SCANCODE_0)
+            {
+                value = 26 + 9; // '0' -> 35
+            }
+            else if (sc >= SDL_SCANCODE_KP_1 && sc <= SDL_SCANCODE_KP_9)
+            {
+                value = 26 + static_cast<int>(sc - SDL_SCANCODE_KP_1 + 1);
+            }
+            else if (sc == SDL_SCANCODE_KP_0)
+            {
+                value = 26 + 0; // map keypad 0 to '0' mapping base
+            }
+        }
+
+        if (value < 0) break; // unmapped key
+
+        Vector2i movement{ m_pMap->GetAdjecentTileDirection(m_pPlayer->GetPosition(), value) };
+        if (movement != Vector2i(0, 0))
+        {
+            m_pPlayer->Move(movement);
+			switch (m_pMap->GetTileState(m_pPlayer->GetPosition()))
 			{
-				m_GameState = GameState::gameplay;
-				break;
+				case(Tile::State::point):
+				{
+					m_pSoundPointCollected->Play(0);
+					if (!m_TimerStarted)
+					{
+						m_TimerStarted = true;
+					}
+					m_Score += m_Multiplier;
+					Vector2i length = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+
+					float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
+					m_MultiplierTimer += dist / m_Multiplier;
+					if (m_MultiplierTimer > 5)
+					{
+						m_MultiplierTimer = 5;
+					}
+					m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+					break;
+				}
+				case(Tile::State::normal):
+				{
+					 m_pSoundButtonPress->Play(0);
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::preparing);
+					break;
+				}
+				case(Tile::State::preparing):
+				{
+					m_pSoundPreparedTile->Play(0);
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::danger);
+					m_vecDangerTiles.push_back(m_pPlayer->GetPosition());
+					break;
+				}
+				case(Tile::State::danger):
+				{
+					m_pSoundHit->Play(0);
+					m_pPlayer->Hit(1);
+					for(int i{ 0 }; i < m_vecDangerTiles.size(); i++ )
+					{
+						if (m_pPlayer->GetPosition() == m_vecDangerTiles[i])
+						{
+							m_vecDangerTiles.erase(m_vecDangerTiles.begin() + i);
+							break;
+						}
+					}
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+					break;
+				}
+				default:
+				{
+					 m_pSoundButtonPress->Play(0);
+				}
 			}
-		}
-		case GameState::end:
-		{
-			if (e.keysym.sym == 114)
+			if (m_vecDangerTiles.size() >= static_cast<int>(11 * m_pMap->GetScale()))
 			{
-				SaveBest();
-				Cleanup();
-				Initialize();
-				m_GameState = GameState::gameplay;
-				break;
+				/*for (const Vector2i& tile : m_vecDangerTiles)
+				{
+					m_pMap->RemoveTileModifier(tile);
+				}
+				m_vecDangerTiles.clear();
+				*/
+				m_pMap->RemoveTileModifier(m_vecDangerTiles[0]);
+				m_vecDangerTiles.erase(m_vecDangerTiles.begin());
 			}
-			break;
-		}
-	}
+        }
+        break;
+    }
+    case GameState::paused:
+    {
+        if (e.keysym.sym == SDLK_ESCAPE)
+        {
+            m_GameState = GameState::gameplay;
+            break;
+        }
+    }
+    case GameState::end:
+    {
+        if (e.keysym.sym == SDLK_r)
+        {
+            SaveBest();
+            Cleanup();
+            Initialize();
+            m_GameState = GameState::gameplay;
+            break;
+        }
+        break;
+    }
+    }
 
 }
+
 
 void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 {
@@ -445,6 +564,7 @@ void Game::ClearBackground( ) const
 	glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT );
 }
+
 
 void Game::SaveBest()
 {

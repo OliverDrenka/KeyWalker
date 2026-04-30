@@ -6,9 +6,10 @@ public:
 	enum class State
 	{
 		normal,
+		preparing,
+		vision,
 		point,
-		danger,
-		vision
+		danger 
 	};
 	Tile();
 	Tile(const int value);
