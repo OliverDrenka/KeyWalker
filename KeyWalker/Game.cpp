@@ -31,7 +31,7 @@ void Game::Initialize( )
     m_pPlayer = new Player();
     m_pOverlay = new Texture("Overlay.png");
     m_pAttackManager = new AttackManager();
-    m_pLetters = new SpriteSheet(36, "Font.png", 5);
+    m_pLetters = new SpriteSheet(36, "UIFont.png", 5);
 
     m_pSoundButtonPress = new SoundEffect("ButtonPress.wav");
     m_pSoundHit = new SoundEffect("Hit.wav");
@@ -45,6 +45,7 @@ void Game::Initialize( )
     m_pSoundPointCollected->SetVolume(25);
 
     m_pMap->SetHexMode(false);
+    m_pMap->SetWrapMode(false);
     m_pMap->GenerateMapRandom();
 
 	m_AttackSpawnTime = 10.f;
@@ -109,7 +110,10 @@ void Game::Update( float elapsedSec )
 		case GameState::gameplay:
 		{
 			m_AttackTimer += elapsedSec;
-			m_TotalTime += elapsedSec;
+			if(m_Score >= 1)
+			{
+				m_TotalTime += elapsedSec;
+			}
 			if(m_MultiplierTimer > 0) 
 			{
 				m_MultiplierTimer -= elapsedSec;
@@ -165,7 +169,7 @@ void Game::Update( float elapsedSec )
 				m_pAttackManager->IncreaseAttackSpeed();
 				*/
 			}
-			if (m_TotalTime > 6.f && !m_PointsSpawned)
+			if ( !m_PointsSpawned)
 			{
 				m_PointsSpawned = true;
                 m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
@@ -222,14 +226,25 @@ void Game::Draw() const
 			for (int i{ 0 }; i < m_vecDangerTiles.size(); i++)
 			{
 				const Vector2i position{ m_vecDangerTiles [i]};
-				const float
-					x{i + 1.f},
-					y{1.f};
 				utils::SetColor(Color4f(1.f, 0.f, 0.f, 1.f));
-				utils::FillRect(position.x*tileSize- x/2 + tileSize/2, position.y*tileSize + y/2, x, y);
+				for (int j{ 0 }; j < i; j++)
+				{
+				const float
+					x{ 1.f / (10.f / (10.f / m_pMap->GetScale() / m_pMap->GetScale()))},
+					w{ x * j * 3 / 2 + x },
+					mw{ tileSize / 2 - (x * i * 3 / 2 + x)/2 + (position.y%2 * tileSize/2 * m_pMap->IsHexMode()) },
+					y{ 1.f };
+					utils::FillRect( position.x * tileSize + w + mw, position.y*tileSize + y, x, y);
+
+				}
 			}
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
-			m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 2 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 2 + m_pMap->GetHeight() / 2));
+			glPushMatrix();
+			{
+				glScalef(0.5f, 0.5f, 1.f);
+				m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 3 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 3.1 + m_pMap->GetHeight() / 2));
+			}
+			glPopMatrix();
             m_pAttackManager->Draw();
 		}
 		glPopMatrix();
@@ -271,7 +286,7 @@ void Game::Draw() const
 				const float
 					x{0},
 					yPos{-GetViewPort().height/16 - 10.f},
-					width{m_MultiplierTimer * 30},
+					width{m_MultiplierTimer * 30 - 5.f},
 					height{8};
 				utils::FillRect(x-width / 2, yPos -height /2, width, height);
 				break;
@@ -344,6 +359,7 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
             break;
         }
 
+
         int value = -1;
         if (key >= SDLK_a && key <= SDLK_z)
         {
@@ -389,6 +405,18 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
         if (movement != Vector2i(0, 0))
         {
             m_pPlayer->Move(movement);
+            // Wrap player around map edges (if enabled)
+            if (m_pMap->IsWrapMode())
+            {
+                int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                Vector2i pos = m_pPlayer->GetPosition();
+                if (pos.x < 0) pos.x = cols - 1;
+                else if (pos.x >= cols) pos.x = 0;
+                if (pos.y < 0) pos.y = rows - 1;
+                else if (pos.y >= rows) pos.y = 0;
+                m_pPlayer->SetPosition(pos);
+            }
 			switch (m_pMap->GetTileState(m_pPlayer->GetPosition()))
 			{
 				case(Tile::State::point):
@@ -460,6 +488,19 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
     }
     case GameState::paused:
     {
+
+		// Toggle hex mode (H) and wrapping (Z) at runtime
+		if (e.keysym.sym == SDLK_UP)
+		{
+			m_pMap->SetHexMode(!m_pMap->IsHexMode());
+			break;
+		}
+		if (e.keysym.sym == SDLK_DOWN)
+		{
+			m_pMap->SetWrapMode(!m_pMap->IsWrapMode());
+			break;
+		}
+
         if (e.keysym.sym == SDLK_ESCAPE)
         {
             m_GameState = GameState::gameplay;

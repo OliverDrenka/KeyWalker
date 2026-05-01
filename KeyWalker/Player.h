@@ -11,6 +11,7 @@ public:
 
     void Draw(const float tileSize = 0, bool hexMode = false) const;
 	void Move( Vector2i direction );
+    void SetPosition(const Vector2i& position);
 	void Update(const float deltaTime);
 	void Hit(const float damage);
 	const Vector2f GetDirection() const;

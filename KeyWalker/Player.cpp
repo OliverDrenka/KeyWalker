@@ -31,8 +31,8 @@ void Player::Draw(const float tileSize, bool hexMode) const
     // scale player so base 16px -> tile scaling; keep centering offsets
     const float baseTile = 16.f;
     const float playerScale = tileSize / baseTile;
-    const float playerW = m_SpriteSheet->GetSpriteWidth();
-    const float playerH = m_SpriteSheet->GetSpriteHeight();
+    const float playerW = 14;
+    const float playerH = 14;
     const float playerDestW = playerW * playerScale;
     const float playerDestH = playerH * playerScale;
 
@@ -79,8 +79,13 @@ void Player::Move(Vector2i direction)
 {
 
 	m_Direction = direction;
-	m_Position.x += direction.x;
-	m_Position.y += direction.y;
+    m_Position.x += direction.x;
+    m_Position.y += direction.y;
+}
+
+void Player::SetPosition(const Vector2i& position)
+{
+    m_Position = position;
 }
 
 void Player::Hit(const float damage)

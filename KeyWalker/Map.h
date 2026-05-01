@@ -14,6 +14,9 @@ public:
     // Switch between square (false) and hex (true) layouts at runtime
     void SetHexMode(bool hex);
     bool IsHexMode() const;
+    // Toggle wrapping (toroidal) behavior for movement/vision/generation
+    void SetWrapMode(bool wrap);
+    bool IsWrapMode() const;
 
     // If pPlayerPosition is non-null, restrict letter drawing to tiles visible from that position
     void Draw( Vector2f position = Vector2f(0,0), const Vector2i* pPlayerPosition = nullptr );
@@ -59,6 +62,7 @@ private:
 	int m_MaxValue;
 	int m_MinValue;
     bool m_IsHexMode;
+    bool m_IsWrapped;
     // persistent visibility mask from previous frame
     std::vector<char> m_PrevVisible;
 

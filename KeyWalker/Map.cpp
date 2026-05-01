@@ -17,6 +17,7 @@ Map::Map()
     m_TileTexture = new Texture("Tile.png");
 	m_TileSize = 16;
     m_IsHexMode = false;
+    m_IsWrapped = false;
     // initialize previous visibility mask 
 	m_Scale = 16.f / m_TileSize;
     m_Grid = new Grid(10 * m_Scale, 6 * m_Scale);
@@ -33,8 +34,8 @@ void Map::DrawLetter(const Vector2i position, const int colorOffest)
     // compute scaled letter drawing metrics (match Draw())
     const float baseTile = 16.f;
     const float letterScale = m_TileSize / baseTile;
-    const float letterW = m_Letters->GetSpriteWidth();
-    const float letterH = m_Letters->GetSpriteHeight();
+    const float letterW = 16;
+    const float letterH = 16;
     const float letterDestW = letterW * letterScale;
     const float letterDestH = letterH * letterScale;
 
@@ -42,8 +43,7 @@ void Map::DrawLetter(const Vector2i position, const int colorOffest)
     if (!m_IsHexMode)
     {
         Vector2f tilePos{ m_DrawOrigin.x + position.x * m_TileSize, m_DrawOrigin.y + position.y * m_TileSize };
-        Vector2f letterPos{ tilePos.x + ((letterW / 2.f) - 1.5f) * letterScale,
-                             tilePos.y + (letterH / 2.f) * letterScale };
+		Vector2f letterPos = tilePos;
         m_Letters->DrawSprite(letterPos,
             m_Grid->GetTileValue(position.x, position.y),
             static_cast<int>(m_Grid->GetTileState(position.x, position.y)) + colorOffest,
@@ -55,8 +55,8 @@ void Map::DrawLetter(const Vector2i position, const int colorOffest)
         const float xOffset = m_TileSize * 0.5f;
         float x = m_DrawOrigin.x + position.x * m_TileSize + ((position.y & 1) ? xOffset : 0.0f);
         float y = m_DrawOrigin.y + position.y * m_TileSize; // no compression
-        Vector2f lp{ x + ((m_Letters->GetSpriteWidth() / 2.f) - 1.5f) * letterScale,
-                     y + (m_Letters->GetSpriteHeight() / 2.f) * letterScale };
+        Vector2f lp{ x ,
+                     y  };
         m_Letters->DrawSprite(lp,
             m_Grid->GetTileValue(position.x, position.y),
             static_cast<int>(m_Grid->GetTileState(position.x, position.y)),
@@ -74,6 +74,16 @@ Map::~Map()
 void Map::SetHexMode(bool hex)
 {
 	m_IsHexMode = hex;
+}
+
+void Map::SetWrapMode(bool wrap)
+{
+    m_IsWrapped = wrap;
+}
+
+bool Map::IsWrapMode() const
+{
+    return m_IsWrapped;
 }
 
 bool Map::IsHexMode() const
@@ -115,18 +125,26 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
         if (!m_IsHexMode)
         {
             // square: initial 5x5 box centered on player, but exclude the 4 far corners
+            // Wrap coordinates so visibility loops around the map edges (if enabled)
+            auto wrapX = [&](int x) {
+                if (!m_IsWrapped) return x;
+                int r = x % numCols; if (r < 0) r += numCols; return r; };
+            auto wrapY = [&](int y) {
+                if (!m_IsWrapped) return y;
+                int r = y % numRows; if (r < 0) r += numRows; return r; };
+
             for (int dy = -2; dy <= 2; ++dy)
             {
                 for (int dx = -2; dx <= 2; ++dx)
                 {
                     // exclude the four corner tiles where both offsets are ±2
                     if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
-                    int cx = pp.x + dx;
-                    int cy = pp.y + dy;
-                    if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
-                    {
-                        visible[cy * numCols + cx] = 1;
-                    }
+                    int cx = wrapX(pp.x + dx);
+                    int cy = wrapY(pp.y + dy);
+                    // when wrapping is disabled wrapX/wrapY return raw coords;
+                    // skip out-of-bounds indices in that case to avoid invalid access
+                    if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                    visible[cy * numCols + cx] = 1;
                 }
             }
 
@@ -149,16 +167,16 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 {
                     for (int dx = -2; dx <= 2; ++dx)
                     {
-                        int cx = v.x + dx;
-                        int cy = v.y + dy;
-                        if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
+                        int tx = v.x + dx;
+                        int ty = v.y + dy;
+                        int cx = wrapX(tx);
+                        int cy = wrapY(ty);
+                        if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue; // out of bounds when wrapping disabled
+                        if (!visible[cy * numCols + cx])
                         {
-                            if (!visible[cy * numCols + cx])
-                            {
-                                visible[cy * numCols + cx] = 1;
-                                if (m_Grid->GetTileState(cx, cy) == Tile::State::vision)
-                                    q.emplace_back(cx, cy);
-                            }
+                            visible[cy * numCols + cx] = 1;
+                            if (m_Grid->GetTileState(cx, cy) == Tile::State::vision)
+                                q.emplace_back(cx, cy);
                         }
                     }
                 }
@@ -169,11 +187,17 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
             // hex: BFS to depth 2 on odd-r layout from the player
             std::deque<std::pair<Vector2i,int>> q0;
             q0.emplace_back(pp, 0);
+
+            auto wrapX = [&](int x) { if (!m_IsWrapped) return x; int r = x % numCols; if (r < 0) r += numCols; return r; };
+            auto wrapY = [&](int y) { if (!m_IsWrapped) return y; int r = y % numRows; if (r < 0) r += numRows; return r; };
             auto try_mark = [&](int x, int y)
             {
-                if (x >= 0 && x < numCols && y >= 0 && y < numRows && !visible[y * numCols + x])
+                int wx = wrapX(x);
+                int wy = wrapY(y);
+                if (wx < 0 || wx >= numCols || wy < 0 || wy >= numRows) return false;
+                if (!visible[wy * numCols + wx])
                 {
-                    visible[y * numCols + x] = 1;
+                    visible[wy * numCols + wx] = 1;
                     return true;
                 }
                 return false;
@@ -209,13 +233,13 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 
                 for (int i = 0; i < 6; ++i)
                 {
-                    int cx = nx[i];
-                    int cy = ny[i];
-                    if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
-                    {
-                        if (try_mark(cx, cy))
-                            q0.emplace_back(Vector2i(cx, cy), depth + 1);
-                    }
+                    int tx = nx[i];
+                    int ty = ny[i];
+                    int cx = wrapX(tx);
+                    int cy = wrapY(ty);
+                    if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                    if (try_mark(cx, cy))
+                        q0.emplace_back(Vector2i(cx, cy), depth + 1);
                 }
             }
 
@@ -237,8 +261,11 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 // some tiles are already globally visible from the player's BFS.
                 std::vector<char> visited(numCols * numRows, 0);
                 std::deque<std::pair<Vector2i,int>> qv;
-                qv.emplace_back(seed, 0);
-                visited[seed.y * numCols + seed.x] = 1;
+                int sx = wrapX(seed.x);
+                int sy = wrapY(seed.y);
+                if (sx < 0 || sx >= numCols || sy < 0 || sy >= numRows) continue;
+                qv.emplace_back(Vector2i(sx, sy), 0);
+                visited[sy * numCols + sx] = 1;
                 // seed is already marked visible by earlier code
                 while (!qv.empty())
                 {
@@ -269,19 +296,19 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 
                     for (int i = 0; i < 6; ++i)
                     {
-                        int cx = nx[i];
-                        int cy = ny[i];
-                        if (cx >= 0 && cx < numCols && cy >= 0 && cy < numRows)
-                        {
-                            int idx = cy * numCols + cx;
-                            if (visited[idx]) continue;
-                            visited[idx] = 1;
-                            // mark globally visible
-                            if (!visible[idx]) visible[idx] = 1;
-                            // enqueue neighbor for further expansion only if it's not a vision tile
-                            if (m_Grid->GetTileState(cx, cy) != Tile::State::vision)
-                                qv.emplace_back(Vector2i(cx, cy), depth + 1);
-                        }
+                    int tx = nx[i];
+                    int ty = ny[i];
+                    int cx = wrapX(tx);
+                    int cy = wrapY(ty);
+                    if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                    int idx = cy * numCols + cx;
+                    if (visited[idx]) continue;
+                    visited[idx] = 1;
+                        // mark globally visible
+                        if (!visible[idx]) visible[idx] = 1;
+                        // enqueue neighbor for further expansion only if it's not a vision tile
+                        if (m_Grid->GetTileState(cx, cy) != Tile::State::vision)
+                            qv.emplace_back(Vector2i(cx, cy), depth + 1);
                     }
                 }
             }
@@ -296,7 +323,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
                 // draw tile texture scaled to the current tile size
-                m_TileTexture->Draw(Rectf{ tilePosition.x, tilePosition.y, m_TileSize, m_TileSize });
+                m_TileTexture->Draw(Rectf{ tilePosition.x, tilePosition.y, m_TileSize, m_TileSize }, Rectf{0,0,34,34});
 
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
@@ -367,11 +394,11 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 float y = position.y + rowIdx * m_TileSize; // <-- IMPORTANT: no compression
 
                 Vector2f tp{ x, y };
-                Vector2f lp{ x + ((m_Letters->GetSpriteWidth() / 2.f) - 1.5f) * letterScale,
-                             y + (m_Letters->GetSpriteHeight() / 2.f) * letterScale };
+                Vector2f lp{ x + ((16 / 2.f) - 1.5f) * letterScale,
+                             y + (16 / 2.f) * letterScale };
 
                 // draw tile texture scaled to tile size
-                m_TileTexture->Draw(Rectf{ tp.x, tp.y, m_TileSize, m_TileSize });
+                m_TileTexture->Draw(Rectf{ tp.x, tp.y, m_TileSize, m_TileSize }, Rectf{ 0,0,34,34 });
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
                 // newly visible? randomize tile
@@ -423,54 +450,97 @@ const Vector2i Map::GetAdjecentTileDirection( Vector2i position, int value )
 {
     const int totalCols{ m_Grid->GetNumCols() };
     const int totalRows{ m_Grid->GetNumRows() };
+    auto wrapX = [&](int x) { if (!m_IsWrapped) return x; int r = x % totalCols; if (r < 0) r += totalCols; return r; };
+    auto wrapY = [&](int y) { if (!m_IsWrapped) return y; int r = y % totalRows; if (r < 0) r += totalRows; return r; };
 
     if (!m_IsHexMode)
     {
-        int tile = m_Grid->GetTileValue(std::min(position.x + 1, totalCols - 1), position.y);
-        if (position.x + 1 < totalCols && tile == value) return Vector2i(1, 0);
-        tile = m_Grid->GetTileValue(position.x, std::min(position.y + 1, totalRows - 1));
-        if (position.y + 1 < totalRows && tile == value) return Vector2i(0, 1);
-        tile = m_Grid->GetTileValue(std::max(position.x - 1, 0), position.y);
-        if (position.x - 1 >= 0 && tile == value) return Vector2i(-1, 0);
-        tile = m_Grid->GetTileValue(position.x, std::max(position.y - 1, 0));
-        if (position.y - 1 >= 0 && tile == value) return Vector2i(0, -1);
+        // Check east
+        {
+            int nx = wrapX(position.x + 1);
+            int ny = wrapY(position.y);
+            if (!m_IsWrapped && (nx < 0 || nx >= totalCols || ny < 0 || ny >= totalRows)) ;
+            else if (m_Grid->GetTileValue(nx, ny) == value) return Vector2i(1, 0);
+        }
+        // Check south
+        {
+            int nx = wrapX(position.x);
+            int ny = wrapY(position.y + 1);
+            if (!m_IsWrapped && (nx < 0 || nx >= totalCols || ny < 0 || ny >= totalRows)) ;
+            else if (m_Grid->GetTileValue(nx, ny) == value) return Vector2i(0, 1);
+        }
+        // Check west
+        {
+            int nx = wrapX(position.x - 1);
+            int ny = wrapY(position.y);
+            if (!m_IsWrapped && (nx < 0 || nx >= totalCols || ny < 0 || ny >= totalRows)) ;
+            else if (m_Grid->GetTileValue(nx, ny) == value) return Vector2i(-1, 0);
+        }
+        // Check north
+        {
+            int nx = wrapX(position.x);
+            int ny = wrapY(position.y - 1);
+            if (!m_IsWrapped && (nx < 0 || nx >= totalCols || ny < 0 || ny >= totalRows)) ;
+            else if (m_Grid->GetTileValue(nx, ny) == value) return Vector2i(0, -1);
+        }
         return Vector2i(0, 0);
     }
 
-    // Hex (odd-r horizontal layout) neighbors
-    // neighbors: E, W, NE, NW, SE, SW depending on row parity
+    // Hex (odd-r horizontal layout) neighbors with wrapping
     const int col = position.x;
     const int row = position.y;
+    bool odd = (row & 1) != 0;
 
     // East
-    if (col + 1 < totalCols && m_Grid->GetTileValue(col + 1, row) == value) return Vector2i(1, 0);
+    {
+        int nc = wrapX(col + 1);
+        int nr = wrapY(row);
+        if (!m_IsWrapped && (nc < 0 || nc >= totalCols || nr < 0 || nr >= totalRows)) ;
+        else if (m_Grid->GetTileValue(nc, nr) == value) return Vector2i(1, 0);
+    }
     // West
-    if (col - 1 >= 0 && m_Grid->GetTileValue(col - 1, row) == value) return Vector2i(-1, 0);
+    {
+        int nc = wrapX(col - 1);
+        int nr = wrapY(row);
+        if (!m_IsWrapped && (nc < 0 || nc >= totalCols || nr < 0 || nr >= totalRows)) ;
+        else if (m_Grid->GetTileValue(nc, nr) == value) return Vector2i(-1, 0);
+    }
 
-    bool odd = (row & 1) != 0;
     // NE
-    if (row - 1 >= 0)
     {
         int nc = odd ? col + 1 : col;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row - 1) == value) return Vector2i(nc - col, -1);
+        int nr = row - 1;
+        nc = wrapX(nc);
+        nr = wrapY(nr);
+        if (m_IsWrapped || (nc >= 0 && nc < totalCols && nr >= 0 && nr < totalRows))
+            if (m_Grid->GetTileValue(nc, nr) == value) return odd ? Vector2i(1, -1) : Vector2i(0, -1);
     }
     // NW
-    if (row - 1 >= 0)
     {
         int nc = odd ? col : col - 1;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row - 1) == value) return Vector2i(nc - col, -1);
+        int nr = row - 1;
+        nc = wrapX(nc);
+        nr = wrapY(nr);
+        if (m_IsWrapped || (nc >= 0 && nc < totalCols && nr >= 0 && nr < totalRows))
+            if (m_Grid->GetTileValue(nc, nr) == value) return odd ? Vector2i(0, -1) : Vector2i(-1, -1);
     }
     // SE
-    if (row + 1 < totalRows)
     {
         int nc = odd ? col + 1 : col;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row + 1) == value) return Vector2i(nc - col, 1);
+        int nr = row + 1;
+        nc = wrapX(nc);
+        nr = wrapY(nr);
+        if (m_IsWrapped || (nc >= 0 && nc < totalCols && nr >= 0 && nr < totalRows))
+            if (m_Grid->GetTileValue(nc, nr) == value) return odd ? Vector2i(1, 1) : Vector2i(0, 1);
     }
     // SW
-    if (row + 1 < totalRows)
     {
         int nc = odd ? col : col - 1;
-        if (nc >= 0 && nc < totalCols && m_Grid->GetTileValue(nc, row + 1) == value) return Vector2i(nc - col, 1);
+        int nr = row + 1;
+        nc = wrapX(nc);
+        nr = wrapY(nr);
+        if (m_IsWrapped || (nc >= 0 && nc < totalCols && nr >= 0 && nr < totalRows))
+            if (m_Grid->GetTileValue(nc, nr) == value) return odd ? Vector2i(0, 1) : Vector2i(-1, 1);
     }
 
     return Vector2i(0, 0);
@@ -482,30 +552,45 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 	const int rows = m_Grid->GetNumRows();
 
 	// square distance (Chebyshev) - number of king moves between tiles
-	auto squareDist = [](const Vector2i& a, const Vector2i& b) -> int
-	{
-		return std::max(std::abs(a.x - b.x), std::abs(a.y - b.y));
-	};
+    auto squareDist = [&](const Vector2i& a, const Vector2i& b) -> int
+    {
+        int dx = std::abs(a.x - b.x);
+        int dy = std::abs(a.y - b.y);
+        // wrap distances (toroidal)
+        dx = std::min(dx, cols - dx);
+        dy = std::min(dy, rows - dy);
+        return std::max(dx, dy);
+    };
 
 	// hex distance for odd-r offset coordinates:
 	// convert odd-r (col,row) to cube coords then compute cube distance
-	auto hexDist = [](const Vector2i& a, const Vector2i& b) -> int
-	{
-		auto oddr_to_cube = [](int col, int row, int& cx, int& cy, int& cz)
-		{
-			// odd-r to axial q,r then to cube x,y,z
-			int q = col - (row - (row & 1)) / 2;
-			int r = row;
-			cx = q;
-			cz = r;
-			cy = -cx - cz;
-		};
+    auto hexDist = [&](const Vector2i& a, const Vector2i& b) -> int
+    {
+        auto oddr_to_cube = [](int col, int row, int& cx, int& cy, int& cz)
+        {
+            int q = col - (row - (row & 1)) / 2;
+            int r = row;
+            cx = q;
+            cz = r;
+            cy = -cx - cz;
+        };
 
-		int ax, ay, az, bx, by, bz;
-		oddr_to_cube(a.x, a.y, ax, ay, az);
-		oddr_to_cube(b.x, b.y, bx, by, bz);
-		return (std::abs(ax - bx) + std::abs(ay - by) + std::abs(az - bz)) / 2;
-	};
+        int best = std::numeric_limits<int>::max();
+        // consider wrapping by shifting b by multiples of cols/rows to find shortest toroidal hex distance
+        for (int sx = -1; sx <= 1; ++sx)
+        {
+            for (int sy = -1; sy <= 1; ++sy)
+            {
+                Vector2i bshift(b.x + sx * cols, b.y + sy * rows);
+                int ax, ay, az, bx, by, bz;
+                oddr_to_cube(a.x, a.y, ax, ay, az);
+                oddr_to_cube(bshift.x, bshift.y, bx, by, bz);
+                int d = (std::abs(ax - bx) + std::abs(ay - by) + std::abs(az - bz)) / 2;
+                if (d < best) best = d;
+            }
+        }
+        return best == std::numeric_limits<int>::max() ? 0 : best;
+    };
 
 	const int requiredDistance = 2;
 	int attempts = 0;
@@ -607,113 +692,105 @@ void Map::RandomizeTile(const Vector2i& position)
 	const int rows{ m_Grid->GetNumRows() };
 
 	// offsets depend on grid type
-	auto IsValidForNeighbors = [&](int v) -> bool
-		{
-			if (!m_IsHexMode)
-			{
-				// orthogonal offsets
-				const int dx[4] = { 1, -1, 0, 0 };
-				const int dy[4] = { 0, 0, 1, -1 };
+    auto IsValidForNeighbors = [&](int v) -> bool
+        {
+                auto wrapX = [&](int x) { if (!m_IsWrapped) return x; int r = x % cols; if (r < 0) r += cols; return r; };
+                auto wrapY = [&](int y) { if (!m_IsWrapped) return y; int r = y % rows; if (r < 0) r += rows; return r; };
 
-				// 1) immediate neighbors
-				for (int i = 0; i < 4; ++i)
-				{
-					int nx = position.x + dx[i];
-					int ny = position.y + dy[i];
-					if (nx >= 0 && nx < cols && ny >= 0 && ny < rows)
-					{
-						if (m_Grid->GetTileValue(nx, ny) == v) return false;
-					}
-				}
+            if (!m_IsHexMode)
+            {
+                // orthogonal offsets
+                const int dx[4] = { 1, -1, 0, 0 };
+                const int dy[4] = { 0, 0, 1, -1 };
 
-				// 2) neighbors of neighbors
-				for (int i = 0; i < 4; ++i)
-				{
-					int nx = position.x + dx[i];
-					int ny = position.y + dy[i];
-					if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) continue;
+                // 1) immediate neighbors (with wrapping)
+                for (int i = 0; i < 4; ++i)
+                {
+                    int nx = wrapX(position.x + dx[i]);
+                    int ny = wrapY(position.y + dy[i]);
+                    if (m_Grid->GetTileValue(nx, ny) == v) return false;
+                }
 
-					for (int j = 0; j < 4; ++j)
-					{
-						int nnx = nx + dx[j];
-						int nny = ny + dy[j];
+                // 2) neighbors of neighbors (with wrapping)
+                for (int i = 0; i < 4; ++i)
+                {
+                    int nx = position.x + dx[i];
+                    int ny = position.y + dy[i];
+                    // iterate neighbors of this neighbor
+                    for (int j = 0; j < 4; ++j)
+                    {
+                        int nnx = nx + dx[j];
+                        int nny = ny + dy[j];
+                        int wx = wrapX(nnx);
+                        int wy = wrapY(nny);
+                        if (wx < 0 || wx >= cols || wy < 0 || wy >= rows) continue;
+                        if (wx == position.x && wy == position.y) continue;
+                        if (m_Grid->GetTileValue(wx, wy) == v) return false;
+                    }
+                }
 
-						if (nnx == position.x && nny == position.y) continue;
+                return true;
+            }
 
-						if (nnx >= 0 && nnx < cols && nny >= 0 && nny < rows)
-						{
-							if (m_Grid->GetTileValue(nnx, nny) == v) return false;
-						}
-					}
-				}
+            const int col = position.x;
+            const int row = position.y;
 
-				return true;
-			}
+            auto Check = [&](int x, int y)
+                {
+                    int wx = wrapX(x);
+                    int wy = wrapY(y);
+                    return m_Grid->GetTileValue(wx, wy) == v;
+                };
 
-			const int col = position.x;
-			const int row = position.y;
+            bool odd = (row & 1) != 0;
 
-			auto IsInside = [&](int x, int y)
-				{
-					return (x >= 0 && x < cols && y >= 0 && y < rows);
-				};
+            //  Immediate neighbors (correct odd-r layout, wrapped)
+            int nx[6], ny[6];
 
-			auto Check = [&](int x, int y)
-				{
-					return IsInside(x, y) && m_Grid->GetTileValue(x, y) == v;
-				};
+            // E, W
+            nx[0] = col + 1; ny[0] = row;
+            nx[1] = col - 1; ny[1] = row;
 
-			bool odd = (row & 1) != 0;
+            if (odd)
+            {
+                nx[2] = col + 1; ny[2] = row - 1; // NE
+                nx[3] = col;     ny[3] = row - 1; // NW
+                nx[4] = col + 1; ny[4] = row + 1; // SE
+                nx[5] = col;     ny[5] = row + 1; // SW
+            }
+            else
+            {
+                nx[2] = col;     ny[2] = row - 1; // NE
+                nx[3] = col - 1; ny[3] = row - 1; // NW
+                nx[4] = col;     ny[4] = row + 1; // SE
+                nx[5] = col - 1; ny[5] = row + 1; // SW
+            }
 
-			//  Immediate neighbors (correct odd-r layout)
-			int nx[6], ny[6];
+            for (int i = 0; i < 6; ++i)
+            {
+                if (Check(nx[i], ny[i])) return false;
+            }
 
-			// E, W
-			nx[0] = col + 1; ny[0] = row;
-			nx[1] = col - 1; ny[1] = row;
+            //  Radius-2 area (robust replacement for "neighbors of neighbors") with wrapping
+            for (int dy = -2; dy <= 2; ++dy)
+            {
+                for (int dx = -2; dx <= 2; ++dx)
+                {
+                    if (dx == 0 && dy == 0) continue;
 
-			if (odd)
-			{
-				nx[2] = col + 1; ny[2] = row - 1; // NE
-				nx[3] = col;     ny[3] = row - 1; // NW
-				nx[4] = col + 1; ny[4] = row + 1; // SE
-				nx[5] = col;     ny[5] = row + 1; // SW
-			}
-			else
-			{
-				nx[2] = col;     ny[2] = row - 1; // NE
-				nx[3] = col - 1; ny[3] = row - 1; // NW
-				nx[4] = col;     ny[4] = row + 1; // SE
-				nx[5] = col - 1; ny[5] = row + 1; // SW
-			}
+                    int cx = col + dx;
+                    int cy = row + dy;
 
-			for (int i = 0; i < 6; ++i)
-			{
-				if (Check(nx[i], ny[i])) return false;
-			}
+                    // simple distance filter (prevents square corners being included)
+                    int dist = abs(dx) + abs(dy);
+                    if (dist > 3) continue;
 
-			//  Radius-2 area (robust replacement for "neighbors of neighbors")
-			for (int dy = -2; dy <= 2; ++dy)
-			{
-				for (int dx = -2; dx <= 2; ++dx)
-				{
-					if (dx == 0 && dy == 0) continue;
+                    if (Check(cx, cy)) return false;
+                }
+            }
 
-					int cx = col + dx;
-					int cy = row + dy;
-
-					if (!IsInside(cx, cy)) continue;
-
-					// simple distance filter (prevents square corners being included)
-					int dist = abs(dx) + abs(dy);
-					if (dist > 3) continue;
-
-					if (m_Grid->GetTileValue(cx, cy) == v) return false;
-				}
-			}
-
-			return true;
-		};
+            return true;
+        };
 
     // Build list of all valid candidates and pick one uniformly at random.
     std::vector<int> candidates;
