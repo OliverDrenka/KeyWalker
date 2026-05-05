@@ -39,14 +39,16 @@ private:
 		start,
 		gameplay,
 		paused,
+		info,
 		end
 	};
 
     Map* m_pMap;
     Player* m_pPlayer;
-    Texture* m_pOverlay;
     AttackManager* m_pAttackManager;
+    SpriteSheet* m_pOverlay;
     SpriteSheet* m_pLetters;
+	Texture* m_pTitleScreen;
 
 	std::vector<Vector2i> m_vecDangerTiles;
 
@@ -58,6 +60,7 @@ private:
 	Texture* m_pScoreText;
 	Texture* m_pTimeText;
 	Texture* m_pHpText;
+	Texture* m_pInfoText;
 
 
 	float m_AttackTimer;
@@ -82,6 +85,10 @@ private:
 	int m_Multiplier;
 
 	bool m_TimerStarted;
+
+	float m_OverlayTimer;
+	float m_OverlayTimerMax;
+	int m_OverlayFrame;
 
 	// Save/load helpers
 	void SaveBest();

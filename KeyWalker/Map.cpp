@@ -13,8 +13,8 @@ Map::Map()
 	: m_MaxValue{25}
 	, m_MinValue{ 0 }
 {
-    m_Letters = new SpriteSheet(36, "Font.png", 5);
-    m_TileTexture = new Texture("Tile.png");
+    m_Letters = new SpriteSheet(36, "Resources/Font.png", 5);
+    m_TileTexture = new SpriteSheet(5,"Resources/Tile.png",2);
 	m_TileSize = 16;
     m_IsHexMode = false;
     m_IsWrapped = false;
@@ -323,7 +323,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
                 // draw tile texture scaled to the current tile size
-                m_TileTexture->Draw(Rectf{ tilePosition.x, tilePosition.y, m_TileSize, m_TileSize }, Rectf{0,0,34,34});
+				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), 0, m_TileSize, m_TileSize);
 
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
@@ -370,7 +370,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
 							break;
 						}
 					}
-					utils::FillEllipse(center, radius, radius);
+					//utils::FillEllipse(center, radius, radius);
 				}
 
                 tilePosition.x += m_TileSize;
@@ -398,8 +398,8 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                              y + (16 / 2.f) * letterScale };
 
                 // draw tile texture scaled to tile size
-                m_TileTexture->Draw(Rectf{ tp.x, tp.y, m_TileSize, m_TileSize }, Rectf{ 0,0,34,34 });
-                bool showLetter = true;
+				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), 0, m_TileSize, m_TileSize);
+				bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
                 // newly visible? randomize tile
                 if (pPlayerPosition && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
@@ -601,7 +601,7 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 	{
 		int x = rand() % cols;
 		int y = rand() % rows;
-		if (m_Grid->GetTileState(x, y) != Tile::State::normal) continue;
+		if (m_Grid->GetTileState(x, y) != Tile::State::normal && m_Grid->GetTileState(x, y) != Tile::State::preparing) continue;
 
 		Vector2i cand(x, y);
 		int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
@@ -617,7 +617,7 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 	{
 		for (int rx = 0; rx < cols; ++rx)
 		{
-			if (m_Grid->GetTileState(rx, ry) != Tile::State::normal) continue;
+			if (m_Grid->GetTileState(rx, ry) != Tile::State::normal && m_Grid->GetTileState(rx, ry) != Tile::State::preparing) continue;
 			Vector2i cand(rx, ry);
 			int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
 			if (d >= requiredDistance)
@@ -633,7 +633,7 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
     {
         for (int rx = 0; rx < cols; ++rx)
         {
-            if (m_Grid->GetTileState(rx, ry) == Tile::State::normal)
+            if (m_Grid->GetTileState(rx, ry) != Tile::State::normal && m_Grid->GetTileState(rx, ry) != Tile::State::preparing)
             {
                 m_Grid->SetTileState(rx, ry, Tile::State::point);
                 return Vector2i(rx, ry);

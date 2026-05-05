@@ -17,7 +17,7 @@ Player::Player(Vector2i position)
 	, m_TimePerFrame{ 0.1f }
 	, m_Direction{Vector2i(0,0)}
 {
-	m_SpriteSheet = new SpriteSheet(4, "Player.png", 3);
+	m_SpriteSheet = new SpriteSheet(4, "Resources/Player.png", 3);
 }
 
 Player::~Player()

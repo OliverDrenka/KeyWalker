@@ -55,7 +55,7 @@ private:
 
     Grid* m_Grid;
 	SpriteSheet* m_Letters;
-	Texture* m_TileTexture;
+	SpriteSheet* m_TileTexture;
 	float m_TileSize;
 	float m_Scale;
 

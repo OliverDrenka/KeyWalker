@@ -18,7 +18,7 @@ Game::~Game( )
 void Game::Initialize( )
 {
 	
-	m_pFont = TTF_OpenFont("BoldPixels.ttf", 16);
+	m_pFont = TTF_OpenFont("Resources/BoldPixels.ttf", 16);
 	m_pRestartText = new Texture("Press R to Restart", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pStartText = new Texture("Press S to Start", m_pFont, Color4f(0.f,0.f,0.f,1.f));
 	m_pPauseText = new Texture("Press ESC to Unpause", m_pFont, Color4f(0.f,0.f,0.f,1.f));
@@ -26,18 +26,20 @@ void Game::Initialize( )
 	m_pTimeText = new Texture("Time:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 	m_pHpText = new Texture("Hp:", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 	m_pBestText = new Texture("Best", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+	m_pInfoText = new Texture("Press I for Info", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 
+	m_pTitleScreen = new Texture("Resources/TitleScreen.png");
     m_pMap = new Map();
     m_pPlayer = new Player();
-    m_pOverlay = new Texture("Overlay.png");
-    m_pAttackManager = new AttackManager();
-    m_pLetters = new SpriteSheet(36, "UIFont.png", 5);
+    m_pOverlay = new SpriteSheet(1, "Resources/Overlay.png", 1);
+	m_pAttackManager = new AttackManager();
+	m_pLetters = new SpriteSheet(36, "Resources/UIFont.png", 5);
 
-    m_pSoundButtonPress = new SoundEffect("ButtonPress.wav");
-    m_pSoundHit = new SoundEffect("Hit.wav");
-    m_pSoundPointSpawn = new SoundEffect("PointSpawn.wav");
-    m_pSoundPointCollected = new SoundEffect("PointCollected.wav");
-	m_pSoundPreparedTile = new SoundEffect("PreparedTile.wav");
+	m_pSoundButtonPress = new SoundEffect("Resources/ButtonPress.wav");
+	m_pSoundHit = new SoundEffect("Resources/Hit.wav");
+	m_pSoundPointSpawn = new SoundEffect("Resources/PointSpawn.wav");
+	m_pSoundPointCollected = new SoundEffect("Resources/PointCollected.wav");
+	m_pSoundPreparedTile = new SoundEffect("Resources/PreparedTile.wav");
 
     m_pSoundButtonPress->SetVolume(50);
     m_pSoundPreparedTile->SetVolume(50);
@@ -60,6 +62,9 @@ void Game::Initialize( )
 	m_vecDangerTiles.reserve(static_cast<int>(11 * m_pMap->GetScale()));
     LoadBest();
 
+	m_OverlayTimer = 0;
+	m_OverlayTimerMax = 1;
+	m_OverlayFrame = 0;
 
 }
 
@@ -70,6 +75,7 @@ void Game::Cleanup( )
     delete m_pOverlay;
     delete m_pAttackManager;
     delete m_pLetters;
+	delete m_pTitleScreen;
 
     delete m_pSoundButtonPress;
     delete m_pSoundHit;
@@ -84,6 +90,7 @@ void Game::Cleanup( )
 	delete m_pTimeText;
 	delete m_pHpText;
     delete m_pBestText;
+	delete m_pInfoText;
 	TTF_CloseFont( m_pFont );
 	m_vecDangerTiles.clear();
 	m_vecDangerTiles.shrink_to_fit();
@@ -109,6 +116,14 @@ void Game::Update( float elapsedSec )
 		}
 		case GameState::gameplay:
 		{
+			if (m_OverlayTimer >= 0)
+			{
+				m_OverlayTimer -= elapsedSec;
+			}
+			else
+			{
+				m_OverlayFrame = 0;
+			}
 			m_AttackTimer += elapsedSec;
 			if(m_Score >= 1)
 			{
@@ -242,7 +257,7 @@ void Game::Draw() const
 			glPushMatrix();
 			{
 				glScalef(0.5f, 0.5f, 1.f);
-				m_pOverlay->Draw(Vector2f(-m_pOverlay->GetWidth() / 3 + m_pMap->GetWidth() / 2, - m_pOverlay->GetHeight() / 3.1 + m_pMap->GetHeight() / 2));
+				m_pOverlay->DrawSprite(Vector2f(-m_pOverlay->GetSpriteWidth() / 3 + m_pMap->GetWidth() / 2, - m_pOverlay->GetSpriteHeight() / 3.1 + m_pMap->GetHeight() / 2), 0, m_OverlayFrame);
 			}
 			glPopMatrix();
             m_pAttackManager->Draw();
@@ -277,7 +292,13 @@ void Game::Draw() const
 			{
 				utils::SetColor(Color4f(0.3f, 0.3f, 0.3f, 0.6f));
 				utils::FillRect(-250, -250, 500, 500);
-				m_pStartText->Draw(Vector2f(-m_pStartText->GetWidth() / 2, -m_pStartText->GetHeight() / 2));
+				m_pStartText->Draw(Vector2f(-m_pStartText->GetWidth() / 2, -m_pStartText->GetHeight() / 2 + 60.f));
+				glPushMatrix();
+				{
+					glScalef(0.63f/2.f, 0.63f/2.f, 1.f);
+					m_pTitleScreen->Draw(Vector2f(-m_pTitleScreen->GetWidth() / 2, -m_pTitleScreen->GetHeight() / 2));
+				}
+				glPopMatrix();
 				break;
 			}
 			case GameState::gameplay:
@@ -288,34 +309,45 @@ void Game::Draw() const
 					yPos{-GetViewPort().height/16 - 10.f},
 					width{m_MultiplierTimer * 30 - 5.f},
 					height{8};
-				utils::FillRect(x-width / 2, yPos -height /2, width, height);
+				utils::FillRect(x-width / 2, yPos, width, height);
 				break;
 			}
 			case GameState::paused:
 			{
 				utils::SetColor(Color4f(0.5f, 0.5f, 0.5f, 0.6f));
 				utils::FillRect(-250, -250, 500, 500);
-				m_pPauseText->Draw(Vector2f(-m_pPauseText->GetWidth()/2, -m_pPauseText->GetHeight() / 2));
+				m_pPauseText->Draw(Vector2f(-m_pPauseText->GetWidth()/2,0));
 				glPushMatrix();
 				{
 
 					glScalef(0.6f, 0.6f, 1.f);
+					m_pInfoText->Draw(Vector2f(-m_pPauseText->GetWidth() / 2, -m_pInfoText->GetHeight()));
 
 					//BestScore
-					m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth() / 2 - m_pBestText->GetWidth() / 2 - 23.f, -50 - y - 18.f));
-					m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - 23.f, -50 - y - 18.f));
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f - 23.f, -50 - 1 * y - 15.f), 26 + static_cast<int>(m_BestScore) % 10);
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f - 23.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f - 23.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
+					m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth() / 2 - m_pBestText->GetWidth() / 2 - 23.f, -50 - y - 13.f));
+					m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - 23.f, -50 - y - 13.f));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f - 23.f, -50 - 1 * y - 10.f), 26 + static_cast<int>(m_BestScore) % 10);
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f - 23.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f - 23.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
 
 
 					//BestTime
-					m_pBestText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(), -50 - y - 18.f));
-					m_pTimeText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50 - y - 18.f));
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 10.f, -50 - 1 * y - 15.f), 26 + static_cast<int>(m_BestTime) % 10);
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 0.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 - 10.f, -50 - 1 * y - 15.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
+					m_pBestText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(), -50 - y - 13.f));
+					m_pTimeText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50 - y - 13.f));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 10.f, -50 - 1 * y - 10.f), 26 + static_cast<int>(m_BestTime) % 10);
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 0.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 - 10.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
 
+				}
+				glPopMatrix();
+				break;
+			}
+			case GameState::info:
+			{
+				glPushMatrix();
+				{
+					glScalef(0.63f,0.63f, 1.f);
+					m_pTitleScreen->Draw(Vector2f(-m_pTitleScreen->GetWidth()/2, -m_pTitleScreen->GetHeight() / 2));
 				}
 				glPopMatrix();
 				break;
@@ -421,6 +453,8 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 			{
 				case(Tile::State::point):
 				{
+					m_OverlayFrame = 1;
+					m_OverlayTimer = m_OverlayTimerMax;
 					m_pSoundPointCollected->Play(0);
 					if (!m_TimerStarted)
 					{
@@ -454,6 +488,8 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 				}
 				case(Tile::State::danger):
 				{
+					m_OverlayFrame = 2;
+					m_OverlayTimer = m_OverlayTimerMax;
 					m_pSoundHit->Play(0);
 					m_pPlayer->Hit(1);
 					for(int i{ 0 }; i < m_vecDangerTiles.size(); i++ )
@@ -490,23 +526,43 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
     {
 
 		// Toggle hex mode (H) and wrapping (Z) at runtime
-		if (e.keysym.sym == SDLK_UP)
+		switch (e.keysym.sym)
 		{
-			m_pMap->SetHexMode(!m_pMap->IsHexMode());
-			break;
+			case(SDLK_F1):
+			{
+				m_pMap->SetHexMode(!m_pMap->IsHexMode());
+				break;
+			}
+			case(SDLK_F2):
+			{
+				m_pMap->SetWrapMode(!m_pMap->IsWrapMode());
+				break;
+			}
+			case(SDLK_i):
+			{
+				m_GameState = GameState::info;
+				break;
+			}
+			case(SDLK_ESCAPE):
+			{
+				m_GameState = GameState::gameplay;
+				break;
+			}
 		}
-		if (e.keysym.sym == SDLK_DOWN)
-		{
-			m_pMap->SetWrapMode(!m_pMap->IsWrapMode());
-			break;
-		}
-
-        if (e.keysym.sym == SDLK_ESCAPE)
-        {
-            m_GameState = GameState::gameplay;
-            break;
-        }
+		break;
     }
+	case GameState::info:
+	{
+		switch (e.keysym.sym)
+		{
+			case(SDLK_i):
+			{
+				m_GameState = GameState::paused;
+				break;
+			}
+		}
+		break;
+	}
     case GameState::end:
     {
         if (e.keysym.sym == SDLK_r)
@@ -602,7 +658,7 @@ void Game::ProcessMouseUpEvent( const SDL_MouseButtonEvent& e )
 
 void Game::ClearBackground( ) const
 {
-	glClearColor( 0.3f, 0.3f, 0.3f, 1.0f );
+	glClearColor( 116.f/255.f, 116.f/255.f, 116.f/255.f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT );
 }
 

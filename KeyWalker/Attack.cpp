@@ -15,7 +15,7 @@ Attack::Attack(Vector2f position, float speed, float scale)
 	, m_Active { false }
 	, m_Radius { 6.f }
 {
-	m_Texture = new Texture("BallAttack.png");
+	m_Texture = new Texture("Resources/BallAttack.png");
 }
 
 Attack::~Attack()
