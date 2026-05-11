@@ -93,6 +93,10 @@ void Player::Hit(const float damage)
 	if (m_Hp > 0)
 	{
 		m_Hp -= damage;
+		if (m_Hp < 0)
+		{
+			m_Hp = 0;
+		}
 		m_SpriteIdx = 1;
 
 	}

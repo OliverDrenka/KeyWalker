@@ -18,6 +18,9 @@ public:
     void SetWrapMode(bool wrap);
     bool IsWrapMode() const;
 
+    void SetBlindMode(bool wrap);
+    bool IsBlindMode() const;
+
     // If pPlayerPosition is non-null, restrict letter drawing to tiles visible from that position
     void Draw( Vector2f position = Vector2f(0,0), const Vector2i* pPlayerPosition = nullptr );
 
@@ -63,6 +66,7 @@ private:
 	int m_MinValue;
     bool m_IsHexMode;
     bool m_IsWrapped;
+	bool m_IsBlind;
     // persistent visibility mask from previous frame
     std::vector<char> m_PrevVisible;
 

@@ -9,7 +9,10 @@ public:
 		preparing,
 		vision,
 		point,
-		danger 
+		danger,
+		heal,
+		buff,
+		debuff
 	};
 	Tile();
 	Tile(const int value);

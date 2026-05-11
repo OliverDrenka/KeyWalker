@@ -13,8 +13,8 @@ Map::Map()
 	: m_MaxValue{25}
 	, m_MinValue{ 0 }
 {
-    m_Letters = new SpriteSheet(36, "Resources/Font.png", 5);
-    m_TileTexture = new SpriteSheet(5,"Resources/Tile.png",2);
+    m_Letters = new SpriteSheet(36, "Resources/Font.png", 8);
+    m_TileTexture = new SpriteSheet(8,"Resources/Tile.png",2);
 	m_TileSize = 16;
     m_IsHexMode = false;
     m_IsWrapped = false;
@@ -81,6 +81,11 @@ void Map::SetWrapMode(bool wrap)
     m_IsWrapped = wrap;
 }
 
+void Map::SetBlindMode(bool wrap)
+{
+    m_IsBlind = wrap;
+}
+
 bool Map::IsWrapMode() const
 {
     return m_IsWrapped;
@@ -89,6 +94,11 @@ bool Map::IsWrapMode() const
 bool Map::IsHexMode() const
 {
 	return m_IsHexMode;
+}
+
+bool Map::IsBlindMode() const
+{
+	return m_IsBlind;
 }
 
 void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
@@ -133,18 +143,41 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                 if (!m_IsWrapped) return y;
                 int r = y % numRows; if (r < 0) r += numRows; return r; };
 
-            for (int dy = -2; dy <= 2; ++dy)
+            if (m_IsBlind)
             {
-                for (int dx = -2; dx <= 2; ++dx)
+                // Blind mode: only show the four orthogonal adjacent tiles (N, S, E, W)
+                const int dx[4] = { 1, -1, 0, 0 };
+                const int dy[4] = { 0, 0, 1, -1 };
+                for (int i = 0; i < 4; ++i)
                 {
-                    // exclude the four corner tiles where both offsets are ±2
-                    if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
-                    int cx = wrapX(pp.x + dx);
-                    int cy = wrapY(pp.y + dy);
-                    // when wrapping is disabled wrapX/wrapY return raw coords;
-                    // skip out-of-bounds indices in that case to avoid invalid access
+                    int cx = wrapX(pp.x + dx[i]);
+                    int cy = wrapY(pp.y + dy[i]);
                     if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
                     visible[cy * numCols + cx] = 1;
+                }
+                // also mark the player's own tile visible so stepping on a vision tile still triggers expansion
+                {
+                    int pcx = wrapX(pp.x);
+                    int pcy = wrapY(pp.y);
+                    if (!(pcx < 0 || pcx >= numCols || pcy < 0 || pcy >= numRows))
+                        visible[pcy * numCols + pcx] = 1;
+                }
+            }
+            else
+            {
+                for (int dy = -2; dy <= 2; ++dy)
+                {
+                    for (int dx = -2; dx <= 2; ++dx)
+                    {
+                        // exclude the four corner tiles where both offsets are ±2
+                        if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
+                        int cx = wrapX(pp.x + dx);
+                        int cy = wrapY(pp.y + dy);
+                        // when wrapping is disabled wrapX/wrapY return raw coords;
+                        // skip out-of-bounds indices in that case to avoid invalid access
+                        if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                        visible[cy * numCols + cx] = 1;
+                    }
                 }
             }
 
@@ -204,14 +237,11 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
             };
 
             try_mark(pp.x, pp.y);
-            while (!q0.empty())
+            if (m_IsBlind)
             {
-                auto cur = q0.front(); q0.pop_front();
-                Vector2i pos = cur.first;
-                int depth = cur.second;
-                if (depth >= 2) continue;
-                int col = pos.x;
-                int row = pos.y;
+                // Blind mode on hex: mark the six immediate hex neighbors (odd-r layout) and player
+                int col = pp.x;
+                int row = pp.y;
                 bool odd = (row & 1) != 0;
                 int nx[6], ny[6];
                 nx[0] = col + 1; ny[0] = row; // E
@@ -230,16 +260,50 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                     nx[4] = col;     ny[4] = row + 1; // SE
                     nx[5] = col - 1; ny[5] = row + 1; // SW
                 }
-
                 for (int i = 0; i < 6; ++i)
                 {
-                    int tx = nx[i];
-                    int ty = ny[i];
-                    int cx = wrapX(tx);
-                    int cy = wrapY(ty);
-                    if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
-                    if (try_mark(cx, cy))
-                        q0.emplace_back(Vector2i(cx, cy), depth + 1);
+                    try_mark(nx[i], ny[i]);
+                }
+            }
+            else
+            {
+                while (!q0.empty())
+                {
+                    auto cur = q0.front(); q0.pop_front();
+                    Vector2i pos = cur.first;
+                    int depth = cur.second;
+                    if (depth >= 2) continue;
+                    int col = pos.x;
+                    int row = pos.y;
+                    bool odd = (row & 1) != 0;
+                    int nx[6], ny[6];
+                    nx[0] = col + 1; ny[0] = row; // E
+                    nx[1] = col - 1; ny[1] = row; // W
+                    if (odd)
+                    {
+                        nx[2] = col + 1; ny[2] = row - 1; // NE
+                        nx[3] = col;     ny[3] = row - 1; // NW
+                        nx[4] = col + 1; ny[4] = row + 1; // SE
+                        nx[5] = col;     ny[5] = row + 1; // SW
+                    }
+                    else
+                    {
+                        nx[2] = col;     ny[2] = row - 1; // NE
+                        nx[3] = col - 1; ny[3] = row - 1; // NW
+                        nx[4] = col;     ny[4] = row + 1; // SE
+                        nx[5] = col - 1; ny[5] = row + 1; // SW
+                    }
+
+                    for (int i = 0; i < 6; ++i)
+                    {
+                        int tx = nx[i];
+                        int ty = ny[i];
+                        int cx = wrapX(tx);
+                        int cy = wrapY(ty);
+                        if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                        if (try_mark(cx, cy))
+                            q0.emplace_back(Vector2i(cx, cy), depth + 1);
+                    }
                 }
             }
 
@@ -323,7 +387,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
             for (int colIdx{}; colIdx < numCols; ++colIdx)
             {
                 // draw tile texture scaled to the current tile size
-				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), 0, m_TileSize, m_TileSize);
+				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), m_IsBlind, m_TileSize, m_TileSize);
 
                 bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
@@ -398,7 +462,7 @@ void Map::Draw( Vector2f position, const Vector2i* pPlayerPosition )
                              y + (16 / 2.f) * letterScale };
 
                 // draw tile texture scaled to tile size
-				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), 0, m_TileSize, m_TileSize);
+				m_TileTexture->DrawSprite(Vector2f(x,y), static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), m_IsBlind, m_TileSize, m_TileSize);
 				bool showLetter = true;
                 if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
                 // newly visible? randomize tile

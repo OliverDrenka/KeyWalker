@@ -51,6 +51,7 @@ private:
 	Texture* m_pTitleScreen;
 
 	std::vector<Vector2i> m_vecDangerTiles;
+	std::vector<Vector2i> m_vecDebuffTiles;
 
 	TTF_Font* m_pFont;
 	Texture* m_pStartText;
@@ -73,7 +74,7 @@ private:
 	SoundEffect* m_pSoundPreparedTile;
     SoundEffect* m_pSoundButtonPress;
     SoundEffect* m_pSoundHit;
-    SoundEffect* m_pSoundPointSpawn;
+    SoundEffect* m_pSoundDebuff;
     SoundEffect* m_pSoundPointCollected;
 
 	GameState m_GameState{ GameState::start };
@@ -85,6 +86,19 @@ private:
 	int m_Multiplier;
 
 	bool m_TimerStarted;
+
+	bool m_Easy{false};
+
+	float m_BuffSpawnTimer;
+	const float m_BuffSpawnTimerMax{10.f};
+
+	bool m_IsConfused;
+
+	float m_BlindnessTimer;
+	float m_ConfusionTimer;
+	float m_WrappingTimer;
+	float m_HexTimer;
+	const float m_StatusTimerMax{5.f};
 
 	float m_OverlayTimer;
 	float m_OverlayTimerMax;

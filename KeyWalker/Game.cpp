@@ -37,16 +37,18 @@ void Game::Initialize( )
 
 	m_pSoundButtonPress = new SoundEffect("Resources/ButtonPress.wav");
 	m_pSoundHit = new SoundEffect("Resources/Hit.wav");
-	m_pSoundPointSpawn = new SoundEffect("Resources/PointSpawn.wav");
+	m_pSoundDebuff = new SoundEffect("Resources/Debuff.wav");
 	m_pSoundPointCollected = new SoundEffect("Resources/PointCollected.wav");
 	m_pSoundPreparedTile = new SoundEffect("Resources/PreparedTile.wav");
 
     m_pSoundButtonPress->SetVolume(50);
     m_pSoundPreparedTile->SetVolume(50);
     m_pSoundHit->SetVolume(40);
+	m_pSoundDebuff->SetVolume(40);
     m_pSoundPointCollected->SetVolume(25);
 
     m_pMap->SetHexMode(false);
+	m_pMap->SetBlindMode(false);
     m_pMap->SetWrapMode(false);
     m_pMap->GenerateMapRandom();
 
@@ -60,11 +62,15 @@ void Game::Initialize( )
 	m_Multiplier = 1.f;
 	m_TimerStarted = false;
 	m_vecDangerTiles.reserve(static_cast<int>(11 * m_pMap->GetScale()));
+    m_vecDebuffTiles.reserve(3);
     LoadBest();
 
 	m_OverlayTimer = 0;
 	m_OverlayTimerMax = 1;
 	m_OverlayFrame = 0;
+    m_IsConfused = false;
+    m_ConfusionTimer = 0.f;
+    m_BuffSpawnTimer = m_BuffSpawnTimerMax;
 
 }
 
@@ -79,7 +85,7 @@ void Game::Cleanup( )
 
     delete m_pSoundButtonPress;
     delete m_pSoundHit;
-    delete m_pSoundPointSpawn;
+    delete m_pSoundDebuff;
     delete m_pSoundPointCollected;
 	delete m_pSoundPreparedTile;
 
@@ -94,6 +100,8 @@ void Game::Cleanup( )
 	TTF_CloseFont( m_pFont );
 	m_vecDangerTiles.clear();
 	m_vecDangerTiles.shrink_to_fit();
+	m_vecDebuffTiles.clear();
+	m_vecDebuffTiles.shrink_to_fit();
 }
 
 void Game::Update( float elapsedSec )
@@ -131,7 +139,15 @@ void Game::Update( float elapsedSec )
 			}
 			if(m_MultiplierTimer > 0) 
 			{
-				m_MultiplierTimer -= elapsedSec;
+				if (m_Easy)
+				{
+
+					m_MultiplierTimer -= elapsedSec / 2;
+				}
+				else
+				{
+					m_MultiplierTimer -= elapsedSec;
+				}
 			}
 			else
 			{
@@ -148,7 +164,7 @@ void Game::Update( float elapsedSec )
 			}
 			if (m_pMap->GetMaxValue() < 36 )
 			{
-				m_pMap->SetMaxValue(15 + static_cast<int>(m_TotalTime/5));
+				m_pMap->SetMaxValue(20 + static_cast<int>(m_TotalTime/5));
 			}
 			if (m_AttackTimer >= 4.f) 
 			{
@@ -191,7 +207,126 @@ void Game::Update( float elapsedSec )
                 m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
 			}
                 m_pAttackManager->Update(elapsedSec);
+            // Confusion status timer
+            if (m_ConfusionTimer > 0.f)
+            {
+                m_ConfusionTimer -= elapsedSec;
+                if (m_ConfusionTimer <= 0.f)
+                {
+                    m_ConfusionTimer = 0.f;
+                    m_IsConfused = false;
+                }
+            }
+			if (m_HexTimer > 0.f)
+			{
+				m_HexTimer -= elapsedSec;
+				if (m_HexTimer <= 0.f)
+				{
+					m_HexTimer = 0.f;
+					m_pMap->SetHexMode(false);
+				}
+			}
+			if (m_BlindnessTimer > 0.f)
+			{
+				m_BlindnessTimer -= elapsedSec;
+				if (m_BlindnessTimer <= 0.f)
+				{
+					m_BlindnessTimer = 0.f;
+					m_pMap->SetBlindMode(false);
+				}
+			}
+			if (m_WrappingTimer > 0.f)
+			{
+				m_WrappingTimer -= elapsedSec;
+				if (m_WrappingTimer <= 0.f)
+				{
+					m_WrappingTimer = 0.f;
+					m_pMap->SetWrapMode(false);
+				}
+			}
+
+
+
             m_pPlayer->Update(elapsedSec);
+            // Buff/Debuff spawn timers (replace existing ones if needed)
+            if (m_TimerStarted)
+            {
+                m_BuffSpawnTimer -= elapsedSec;
+
+                // helper: find first tile with given state
+                auto FindStatePos = [&](Tile::State want, Vector2i& outPos) -> bool
+            {
+                const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                if (cols <= 0 || rows <= 0) return false;
+                for (int y = 0; y < rows; ++y)
+                {
+                    for (int x = 0; x < cols; ++x)
+                    {
+                        Vector2i p(x,y);
+                        if (m_pMap->GetTileState(p) == want)
+                        {
+                            outPos = p;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            auto PlaceReplacement = [&](Tile::State kind)
+            {
+                // If an existing tile of this kind exists, clear it first
+                Vector2i existing;
+                if (FindStatePos(kind, existing))
+                {
+                    m_pMap->SetTileState(existing, Tile::State::normal);
+                }
+
+                // Try to pick a tile at distance using CreateRandomPointTile
+                Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                const Vector2i playerPos = m_pPlayer->GetPosition();
+                if (spawned == playerPos)
+                {
+                    // fallback: choose any normal/preparing tile not under player
+                    const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                    const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                    std::vector<Vector2i> candidates;
+                    for (int y = 0; y < rows; ++y)
+                    {
+                        for (int x = 0; x < cols; ++x)
+                        {
+                            Vector2i p(x,y);
+                            if (p == playerPos) continue;
+                            Tile::State st = m_pMap->GetTileState(p);
+                            if (st == Tile::State::normal || st == Tile::State::preparing)
+                                candidates.push_back(p);
+                        }
+                    }
+                    if (!candidates.empty())
+                    {
+                        Vector2i pick = candidates[rand() % static_cast<int>(candidates.size())];
+                        m_pMap->SetTileState(pick, kind);
+                    }
+                }
+                else
+                {
+                    m_pMap->SetTileState(spawned, kind);
+                }
+            };
+
+                if (m_BuffSpawnTimer <= 0.f)
+                {
+                    m_BuffSpawnTimer = m_BuffSpawnTimerMax;
+                    PlaceReplacement(Tile::State::buff);
+                }
+            }
+            else
+            {
+                // ensure timers are reset until gameplay starts
+                m_BuffSpawnTimer = m_BuffSpawnTimerMax;
+                
+            }
             if (m_pAttackManager->IsColliding(m_pPlayer->GetBounds(m_pMap->GetTileSize(), m_pMap->IsHexMode()), m_pPlayer->GetDirection()))
 			{
                 m_pPlayer->Hit(1);
@@ -238,19 +373,37 @@ void Game::Draw() const
             m_pMap->Draw(Vector2f(0.f, 0.f), &playerTile);
 			const float
 				tileSize{m_pMap->GetTileSize()};
-			for (int i{ 0 }; i < m_vecDangerTiles.size(); i++)
+			if (!m_pMap->IsBlindMode())
 			{
-				const Vector2i position{ m_vecDangerTiles [i]};
-				utils::SetColor(Color4f(1.f, 0.f, 0.f, 1.f));
-				for (int j{ 0 }; j < i; j++)
+				for (int i{ 0 }; i < m_vecDangerTiles.size(); i++)
 				{
-				const float
-					x{ 1.f / (10.f / (10.f / m_pMap->GetScale() / m_pMap->GetScale()))},
-					w{ x * j * 3 / 2 + x },
-					mw{ tileSize / 2 - (x * i * 3 / 2 + x)/2 + (position.y%2 * tileSize/2 * m_pMap->IsHexMode()) },
-					y{ 1.f };
-					utils::FillRect( position.x * tileSize + w + mw, position.y*tileSize + y, x, y);
+					const Vector2i position{ m_vecDangerTiles [i]};
+					utils::SetColor(Color4f(1.f, 0.f, 0.f, 1.f));
+					for (int j{ 0 }; j < i; j++)
+					{
+					const float
+						x{ 1.f / (10.f / (10.f / m_pMap->GetScale() / m_pMap->GetScale()))},
+						w{ x * j * 3 / 2 + x },
+						mw{ tileSize / 2 - (x * i * 3 / 2 + x)/2 + (position.y%2 * tileSize/2 * m_pMap->IsHexMode()) },
+						y{ 1.f };
+						utils::FillRect( position.x * tileSize + w + mw, position.y*tileSize + y, x, y);
 
+					}
+				}
+				for (int i{ 0 }; i < m_vecDebuffTiles.size(); i++)
+				{
+					const Vector2i position{ m_vecDebuffTiles[i] };
+					utils::SetColor(Color4f(0.3f, 0.f, 0.6f, 1.f));
+					for (int j{ 0 }; j < i; j++)
+					{
+						const float
+							x{ 1.f / (10.f / (10.f / m_pMap->GetScale() / m_pMap->GetScale())) },
+							w{ x * j * 3 / 2 + x },
+							mw{ tileSize / 2 - (x * i * 3 / 2 + x) / 2 + (position.y % 2 * tileSize / 2 * m_pMap->IsHexMode()) },
+							y{ 1.f };
+						utils::FillRect(position.x * tileSize + w + mw, position.y * tileSize + y, x, y);
+
+					}
 				}
 			}
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
@@ -284,6 +437,11 @@ void Game::Draw() const
         m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 10 % 10));
         m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 100 % 10));
 
+		if (m_Easy)
+		{
+			utils::SetColor(Color4f(0.f, 1.f, 0.f, 1.f));
+			utils::FillEllipse(Vector2f(120, 73.5), 8, 8);
+		}
 
 
 		switch (m_GameState)
@@ -307,9 +465,9 @@ void Game::Draw() const
 				const float
 					x{0},
 					yPos{-GetViewPort().height/16 - 10.f},
-					width{m_MultiplierTimer * 30 - 5.f},
+					width{m_MultiplierTimer * 30 / 2 - 5.f},
 					height{8};
-				utils::FillRect(x-width / 2, yPos, width, height);
+				utils::FillRect(x-width / 2 , yPos, width, height);
 				break;
 			}
 			case GameState::paused:
@@ -390,6 +548,7 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
             m_GameState = GameState::paused;
             break;
         }
+      
 
 
         int value = -1;
@@ -436,6 +595,12 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
         Vector2i movement{ m_pMap->GetAdjecentTileDirection(m_pPlayer->GetPosition(), value) };
         if (movement != Vector2i(0, 0))
         {
+            // If confused, invert intended movement
+            if (m_IsConfused)
+            {
+                movement.x = -movement.x;
+                movement.y = -movement.y;
+            }
             m_pPlayer->Move(movement);
             // Wrap player around map edges (if enabled)
             if (m_pMap->IsWrapMode())
@@ -447,6 +612,20 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
                 else if (pos.x >= cols) pos.x = 0;
                 if (pos.y < 0) pos.y = rows - 1;
                 else if (pos.y >= rows) pos.y = 0;
+                m_pPlayer->SetPosition(pos);
+            }
+            else
+            {
+                // When wrapping is disabled, clamp player inside map bounds
+                int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                if (cols <= 0) cols = 1;
+                if (rows <= 0) rows = 1;
+                Vector2i pos = m_pPlayer->GetPosition();
+                if (pos.x < 0) pos.x = 0;
+                else if (pos.x >= cols) pos.x = cols - 1;
+                if (pos.y < 0) pos.y = 0;
+                else if (pos.y >= rows) pos.y = rows - 1;
                 m_pPlayer->SetPosition(pos);
             }
 			switch (m_pMap->GetTileState(m_pPlayer->GetPosition()))
@@ -465,13 +644,61 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 
 					float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
 					m_MultiplierTimer += dist / m_Multiplier;
-					if (m_MultiplierTimer > 5)
+					if (m_MultiplierTimer > 7.5)
 					{
-						m_MultiplierTimer = 5;
+						m_MultiplierTimer = 7.5;
 					}
 					m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
 					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
 					break;
+				}
+				case(Tile::State::debuff):
+				{
+					m_pSoundDebuff->Play(0);
+
+					m_pMap->SetBlindMode(true);
+					m_BlindnessTimer = m_StatusTimerMax;
+
+					/*else
+					{
+						m_IsConfused = true;
+						m_ConfusionTimer = m_StatusTimerMax;
+					}*/
+					// remove from debuff list if present
+					for (int i{ 0 }; i < m_vecDebuffTiles.size(); ++i)
+					{
+						if (m_pPlayer->GetPosition() == m_vecDebuffTiles[i])
+						{
+							m_vecDebuffTiles.erase(m_vecDebuffTiles.begin() + i);
+							break;
+						}
+					}
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+					break;
+				}
+				case(Tile::State::buff):
+				{
+					switch (rand() % 2)
+					{
+						case(0):
+						{
+							m_pMap->SetHexMode(true);
+							m_HexTimer = m_StatusTimerMax;
+							break;
+						}
+						case(1):
+						{
+							m_pMap->SetWrapMode(true);
+							m_WrappingTimer = m_StatusTimerMax;
+							break;
+						}
+						case(2):
+						{
+							m_pMap->SetHexMode(true);
+							break;
+						}
+					}
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
 				}
 				case(Tile::State::normal):
 				{
@@ -481,9 +708,22 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 				}
 				case(Tile::State::preparing):
 				{
-					m_pSoundPreparedTile->Play(0);
-					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::danger);
-					m_vecDangerTiles.push_back(m_pPlayer->GetPosition());
+				m_pSoundPreparedTile->Play(0);
+				// 1 in 10 chance this preparing tile becomes a debuff instead of danger
+				{
+					Vector2i pos = m_pPlayer->GetPosition();
+                    if ((rand() % 2) == 0)
+                    {
+                        m_pMap->SetTileState(pos, Tile::State::debuff);
+                        m_vecDebuffTiles.push_back(pos);
+           
+                    }
+                    else
+                    {
+                        m_pMap->SetTileState(pos, Tile::State::danger);
+                        m_vecDangerTiles.push_back(pos);
+                    }
+				}
 					break;
 				}
 				case(Tile::State::danger):
@@ -510,14 +750,13 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 			}
 			if (m_vecDangerTiles.size() >= static_cast<int>(11 * m_pMap->GetScale()))
 			{
-				/*for (const Vector2i& tile : m_vecDangerTiles)
-				{
-					m_pMap->RemoveTileModifier(tile);
-				}
-				m_vecDangerTiles.clear();
-				*/
 				m_pMap->RemoveTileModifier(m_vecDangerTiles[0]);
 				m_vecDangerTiles.erase(m_vecDangerTiles.begin());
+			}
+			if (m_vecDebuffTiles.size() >= static_cast<int>(4 * m_pMap->GetScale()))
+			{
+				m_pMap->RemoveTileModifier(m_vecDebuffTiles[0]);
+				m_vecDebuffTiles.erase(m_vecDebuffTiles.begin());
 			}
         }
         break;
@@ -538,9 +777,31 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 				m_pMap->SetWrapMode(!m_pMap->IsWrapMode());
 				break;
 			}
+			case(SDLK_F3):
+			{
+				m_IsConfused = !m_IsConfused;
+				break;
+			}
+			case(SDLK_F4):
+			{
+				m_pMap->SetBlindMode(!m_pMap->IsBlindMode());
+				break;
+			}
 			case(SDLK_i):
 			{
 				m_GameState = GameState::info;
+				break;
+			}
+			case(SDLK_f):
+			{
+				if (m_Easy)
+				{
+					m_Easy = false;
+				}
+				else
+				{
+					m_Easy = true;
+				}
 				break;
 			}
 			case(SDLK_ESCAPE):
