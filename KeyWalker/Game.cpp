@@ -38,14 +38,18 @@ void Game::Initialize( )
 	m_pSoundButtonPress = new SoundEffect("Resources/ButtonPress.wav");
 	m_pSoundHit = new SoundEffect("Resources/Hit.wav");
 	m_pSoundDebuff = new SoundEffect("Resources/Debuff.wav");
+	m_pSoundBuff = new SoundEffect("Resources/Buff.wav");
 	m_pSoundPointCollected = new SoundEffect("Resources/PointCollected.wav");
 	m_pSoundPreparedTile = new SoundEffect("Resources/PreparedTile.wav");
+	m_pSoundHeal = new SoundEffect("Resources/Heal.wav");
 
     m_pSoundButtonPress->SetVolume(50);
     m_pSoundPreparedTile->SetVolume(50);
     m_pSoundHit->SetVolume(40);
 	m_pSoundDebuff->SetVolume(40);
+	m_pSoundBuff->SetVolume(40);
     m_pSoundPointCollected->SetVolume(25);
+	m_pSoundHeal->SetVolume(40);
 
     m_pMap->SetHexMode(false);
 	m_pMap->SetBlindMode(false);
@@ -71,6 +75,7 @@ void Game::Initialize( )
     m_IsConfused = false;
     m_ConfusionTimer = 0.f;
     m_BuffSpawnTimer = m_BuffSpawnTimerMax;
+    m_HealSpawnTimer = m_HealSpawnTimerMax;
 
 }
 
@@ -88,6 +93,8 @@ void Game::Cleanup( )
     delete m_pSoundDebuff;
     delete m_pSoundPointCollected;
 	delete m_pSoundPreparedTile;
+	delete m_pSoundBuff;
+	delete m_pSoundHeal;
 
 	delete m_pRestartText;
 	delete m_pPauseText;
@@ -217,44 +224,52 @@ void Game::Update( float elapsedSec )
                     m_IsConfused = false;
                 }
             }
-			if (m_HexTimer > 0.f)
-			{
-				m_HexTimer -= elapsedSec;
-				if (m_HexTimer <= 0.f)
-				{
-					m_HexTimer = 0.f;
-					m_pMap->SetHexMode(false);
-				}
-			}
-			if (m_BlindnessTimer > 0.f)
-			{
-				m_BlindnessTimer -= elapsedSec;
-				if (m_BlindnessTimer <= 0.f)
-				{
-					m_BlindnessTimer = 0.f;
-					m_pMap->SetBlindMode(false);
-				}
-			}
-			if (m_WrappingTimer > 0.f)
-			{
-				m_WrappingTimer -= elapsedSec;
-				if (m_WrappingTimer <= 0.f)
-				{
-					m_WrappingTimer = 0.f;
-					m_pMap->SetWrapMode(false);
-				}
-			}
+            // Update buff/debuff state on player and map
+            // Player owns unified buff timer and debuff timer
+            // Query player buff and enable/disable map modes accordingly
+            if (m_pPlayer->HasBuff(Player::BuffType::hex))
+            {
+                m_pMap->SetHexMode(true);
+            }
+            else
+            {
+                m_pMap->SetHexMode(false);
+            }
+
+            if (m_pPlayer->HasBuff(Player::BuffType::wrap))
+            {
+                m_pMap->SetWrapMode(true);
+            }
+            else
+            {
+                m_pMap->SetWrapMode(false);
+            }
+
+            if (m_pPlayer->HasBuff(Player::BuffType::reveal))
+            {
+                m_pMap->SetRevealedMode(true);
+            }
+            else
+            {
+                m_pMap->SetRevealedMode(false);
+            }
+
+            // apply debuff map effects (blindness) while player debuffed
+            if (m_pPlayer->IsDebuffed())
+            {
+                m_pMap->SetBlindMode(true);
+            }
+            else
+            {
+                m_pMap->SetBlindMode(false);
+            }
 
 
 
             m_pPlayer->Update(elapsedSec);
             // Buff/Debuff spawn timers (replace existing ones if needed)
-            if (m_TimerStarted)
-            {
-                m_BuffSpawnTimer -= elapsedSec;
-
-                // helper: find first tile with given state
-                auto FindStatePos = [&](Tile::State want, Vector2i& outPos) -> bool
+            // helper: find first tile with given state (used by buff and heal logic)
+            auto FindStatePos = [&](Tile::State want, Vector2i& outPos) -> bool
             {
                 const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
                 const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
@@ -274,46 +289,50 @@ void Game::Update( float elapsedSec )
                 return false;
             };
 
-            auto PlaceReplacement = [&](Tile::State kind)
+            if (m_TimerStarted)
             {
-                // If an existing tile of this kind exists, clear it first
-                Vector2i existing;
-                if (FindStatePos(kind, existing))
-                {
-                    m_pMap->SetTileState(existing, Tile::State::normal);
-                }
+                m_BuffSpawnTimer -= elapsedSec;
 
-                // Try to pick a tile at distance using CreateRandomPointTile
-                Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
-                const Vector2i playerPos = m_pPlayer->GetPosition();
-                if (spawned == playerPos)
+                auto PlaceReplacement = [&](Tile::State kind)
                 {
-                    // fallback: choose any normal/preparing tile not under player
-                    const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
-                    const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
-                    std::vector<Vector2i> candidates;
-                    for (int y = 0; y < rows; ++y)
+                    // If an existing tile of this kind exists, clear it first
+                    Vector2i existing;
+                    if (FindStatePos(kind, existing))
                     {
-                        for (int x = 0; x < cols; ++x)
+                        m_pMap->SetTileState(existing, Tile::State::normal);
+                    }
+
+                    // Try to pick a tile at distance using CreateRandomPointTile
+                    Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                    const Vector2i playerPos = m_pPlayer->GetPosition();
+                    if (spawned == playerPos)
+                    {
+                        // fallback: choose any normal/preparing tile not under player
+                        const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                        const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                        std::vector<Vector2i> candidates;
+                        for (int y = 0; y < rows; ++y)
                         {
-                            Vector2i p(x,y);
-                            if (p == playerPos) continue;
-                            Tile::State st = m_pMap->GetTileState(p);
-                            if (st == Tile::State::normal || st == Tile::State::preparing)
-                                candidates.push_back(p);
+                            for (int x = 0; x < cols; ++x)
+                            {
+                                Vector2i p(x,y);
+                                if (p == playerPos) continue;
+                                Tile::State st = m_pMap->GetTileState(p);
+                                if (st == Tile::State::normal || st == Tile::State::preparing)
+                                    candidates.push_back(p);
+                            }
+                        }
+                        if (!candidates.empty())
+                        {
+                            Vector2i pick = candidates[rand() % static_cast<int>(candidates.size())];
+                            m_pMap->SetTileState(pick, kind);
                         }
                     }
-                    if (!candidates.empty())
+                    else
                     {
-                        Vector2i pick = candidates[rand() % static_cast<int>(candidates.size())];
-                        m_pMap->SetTileState(pick, kind);
+                        m_pMap->SetTileState(spawned, kind);
                     }
-                }
-                else
-                {
-                    m_pMap->SetTileState(spawned, kind);
-                }
-            };
+                };
 
                 if (m_BuffSpawnTimer <= 0.f)
                 {
@@ -326,6 +345,64 @@ void Game::Update( float elapsedSec )
                 // ensure timers are reset until gameplay starts
                 m_BuffSpawnTimer = m_BuffSpawnTimerMax;
                 
+            }
+            // Heal spawn logic: after first point picked up spawn a heal on the edge every interval
+            if (m_TimerStarted)
+            {
+                m_HealSpawnTimer -= elapsedSec;
+                if (m_HealSpawnTimer <= 0.f)
+                {
+                    m_HealSpawnTimer = m_HealSpawnTimerMax;
+                    // Do not spawn if a heal tile already exists
+                    Vector2i existingHeal;
+                    if (!FindStatePos(Tile::State::heal, existingHeal))
+                    {
+                        const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                        const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                        const Vector2i playerPos = m_pPlayer->GetPosition();
+                        std::vector<Vector2i> edgeCandidates;
+                        if (cols > 0 && rows > 0)
+                        {
+                            // top and bottom rows
+                            for (int x = 0; x < cols; ++x)
+                            {
+                                Vector2i top(x, 0);
+                                Vector2i bottom(x, rows - 1);
+                                if (!(top == playerPos))
+                                {
+                                    Tile::State st = m_pMap->GetTileState(top);
+                                    if (st == Tile::State::normal || st == Tile::State::preparing) edgeCandidates.push_back(top);
+                                }
+                                if (!(bottom == playerPos) && rows > 1)
+                                {
+                                    Tile::State st = m_pMap->GetTileState(bottom);
+                                    if (st == Tile::State::normal || st == Tile::State::preparing) edgeCandidates.push_back(bottom);
+                                }
+                            }
+                            // left and right columns (skip corners already added)
+                            for (int y = 1; y < rows - 1; ++y)
+                            {
+                                Vector2i left(0, y);
+                                Vector2i right(cols - 1, y);
+                                if (!(left == playerPos))
+                                {
+                                    Tile::State st = m_pMap->GetTileState(left);
+                                    if (st == Tile::State::normal || st == Tile::State::preparing) edgeCandidates.push_back(left);
+                                }
+                                if (!(right == playerPos) && cols > 1)
+                                {
+                                    Tile::State st = m_pMap->GetTileState(right);
+                                    if (st == Tile::State::normal || st == Tile::State::preparing) edgeCandidates.push_back(right);
+                                }
+                            }
+                        }
+                        if (!edgeCandidates.empty())
+                        {
+                            Vector2i pick = edgeCandidates[rand() % static_cast<int>(edgeCandidates.size())];
+                            m_pMap->SetTileState(pick, Tile::State::heal);
+                        }
+                    }
+                }
             }
             if (m_pAttackManager->IsColliding(m_pPlayer->GetBounds(m_pMap->GetTileSize(), m_pMap->IsHexMode()), m_pPlayer->GetDirection()))
 			{
@@ -345,9 +422,10 @@ void Game::Update( float elapsedSec )
 		{
 			
 		}
+			break;
 		case GameState::end:
 		{
-			m_pPlayer->Update(elapsedSec);
+			// Do not advance gameplay timers in end state. Keep player static.
 			break;
 		}
 		
@@ -652,12 +730,31 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
 					break;
 				}
+				case(Tile::State::heal):
+				{
+					// consume heal
+					m_pSoundHeal->Play(0);
+					m_pPlayer->Heal(1);
+					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+					break;
+				}
 				case(Tile::State::debuff):
 				{
 					m_pSoundDebuff->Play(0);
 
-					m_pMap->SetBlindMode(true);
-					m_BlindnessTimer = m_StatusTimerMax;
+				// apply debuff to player (player owns debuff timer)
+				if (rand() % 2 == 0)
+				{
+					m_pPlayer->ApplyDebuff(m_StatusTimerMax);
+					//m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+				}
+				else
+				{
+					m_pPlayer->ApplyDebuff(m_StatusTimerMax);
+					//m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
+
+				}
+
 
 					/*else
 					{
@@ -678,27 +775,27 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 				}
 				case(Tile::State::buff):
 				{
-					switch (rand() % 2)
+					m_pSoundBuff->Play(0);
+					switch (rand() % 3)
 					{
 						case(0):
 						{
-							m_pMap->SetHexMode(true);
-							m_HexTimer = m_StatusTimerMax;
+						m_pPlayer->ApplyBuff(Player::BuffType::hex, m_StatusTimerMax);
 							break;
 						}
 						case(1):
 						{
-							m_pMap->SetWrapMode(true);
-							m_WrappingTimer = m_StatusTimerMax;
+						m_pPlayer->ApplyBuff(Player::BuffType::wrap, m_StatusTimerMax);
 							break;
 						}
 						case(2):
 						{
-							m_pMap->SetHexMode(true);
+						m_pPlayer->ApplyBuff(Player::BuffType::reveal, m_StatusTimerMax);
 							break;
 						}
 					}
 					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+					break;
 				}
 				case(Tile::State::normal):
 				{
@@ -712,7 +809,7 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 				// 1 in 10 chance this preparing tile becomes a debuff instead of danger
 				{
 					Vector2i pos = m_pPlayer->GetPosition();
-                    if ((rand() % 2) == 0)
+                    if ((rand() % 7) == 0)
                     {
                         m_pMap->SetTileState(pos, Tile::State::debuff);
                         m_vecDebuffTiles.push_back(pos);
@@ -779,10 +876,15 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 			}
 			case(SDLK_F3):
 			{
-				m_IsConfused = !m_IsConfused;
+				m_pMap->SetRevealedMode(!m_pMap->IsRevealed());
 				break;
 			}
 			case(SDLK_F4):
+			{
+				m_IsConfused = !m_IsConfused;
+				break;
+			}
+			case(SDLK_F5):
 			{
 				m_pMap->SetBlindMode(!m_pMap->IsBlindMode());
 				break;

@@ -21,6 +21,10 @@ public:
     void SetBlindMode(bool wrap);
     bool IsBlindMode() const;
 
+    // Reveal entire map (ignore blind/visibility); when enabled Draw will show all tiles
+    void SetRevealedMode(bool revealed);
+    bool IsRevealed() const;
+
     // If pPlayerPosition is non-null, restrict letter drawing to tiles visible from that position
     void Draw( Vector2f position = Vector2f(0,0), const Vector2i* pPlayerPosition = nullptr );
 
@@ -67,8 +71,11 @@ private:
     bool m_IsHexMode;
     bool m_IsWrapped;
 	bool m_IsBlind;
+    bool m_IsRevealed{ false };
     // persistent visibility mask from previous frame
     std::vector<char> m_PrevVisible;
+    // Current visibility mask (set during Draw). If empty, treat all tiles as visible.
+    std::vector<char> m_CurrentVisible;
 
 };
 

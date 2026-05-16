@@ -75,6 +75,8 @@ private:
     SoundEffect* m_pSoundButtonPress;
     SoundEffect* m_pSoundHit;
     SoundEffect* m_pSoundDebuff;
+    SoundEffect* m_pSoundBuff;
+	SoundEffect* m_pSoundHeal;
     SoundEffect* m_pSoundPointCollected;
 
 	GameState m_GameState{ GameState::start };
@@ -90,15 +92,17 @@ private:
 	bool m_Easy{false};
 
 	float m_BuffSpawnTimer;
-	const float m_BuffSpawnTimerMax{10.f};
+	const float m_BuffSpawnTimerMax{9.5f};
+
+    // Heal spawn: after first point pickup spawn a heal on the edge every interval
+    float m_HealSpawnTimer;
+    const float m_HealSpawnTimerMax{100.f};
 
 	bool m_IsConfused;
-
-	float m_BlindnessTimer;
 	float m_ConfusionTimer;
-	float m_WrappingTimer;
-	float m_HexTimer;
-	const float m_StatusTimerMax{5.f};
+	// buff timers moved to Player: hex/wrap/reveal unified
+	// debuff timer moved to Player
+	const float m_StatusTimerMax{10.f};
 
 	float m_OverlayTimer;
 	float m_OverlayTimerMax;
