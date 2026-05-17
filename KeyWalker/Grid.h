@@ -18,6 +18,10 @@ public:
 
 	const void SetTile(const int colIdx, const int rowIdx, const int value);
 
+    // Add columns to the right side of the grid, preserving existing content (existing tile indices stay the same).
+    void AddColsLeft(int count);
+	// Add rows to the bottom of the grid, preserving existing content.
+	void AddRowsBottom(int count);
 
 private:
 	Tile* m_Grid;

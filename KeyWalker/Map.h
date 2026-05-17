@@ -51,10 +51,16 @@ public:
 
 	void RandomizeTile(const Vector2i& position);
 
+	const int GetNumRows() const;
+	const int GetNumCols() const;
+
 	void GenerateMapOrdered();
 	void GenerateMapKeyboard();
 	void GenerateMapRandom();
 
+	// Increase grid size: add columns on the left or rows at the bottom without modifying existing content
+	void IncreaseCols(int count = 1);
+	void IncreaseRows(int count = 1);
 
 private:
     // Origin passed to Draw() used by DrawLetter to compute world positions
@@ -68,6 +74,11 @@ private:
 
 	int m_MaxValue;
 	int m_MinValue;
+    // Multipliers used to compute max counts based on current map scale.
+    int m_MaxDangerMultiplier;
+    int m_MaxDebuffMultiplier;
+    int m_MaxPointMultiplier;
+    int m_MaxBuffMultiplier;
     bool m_IsHexMode;
     bool m_IsWrapped;
 	bool m_IsBlind;
@@ -76,6 +87,19 @@ private:
     std::vector<char> m_PrevVisible;
     // Current visibility mask (set during Draw). If empty, treat all tiles as visible.
     std::vector<char> m_CurrentVisible;
+
+public:
+    // Get computed maxima (based on scale * multiplier). These update automatically when scale changes.
+    int GetMaxDangerTiles() const;
+    int GetMaxDebuffTiles() const;
+    int GetMaxPointTiles() const;
+    int GetMaxBuffTiles() const;
+
+    // Optional: adjust multipliers used to compute maxima
+    void SetMaxDangerMultiplier(int m);
+    void SetMaxDebuffMultiplier(int m);
+    void SetMaxPointMultiplier(int m);
+    void SetMaxBuffMultiplier(int m);
 
 };
 

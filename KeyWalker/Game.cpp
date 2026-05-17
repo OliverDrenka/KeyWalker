@@ -65,8 +65,10 @@ void Game::Initialize( )
 	m_MultiplierTimer = 0;
 	m_Multiplier = 1.f;
 	m_TimerStarted = false;
-	m_vecDangerTiles.reserve(static_cast<int>(11 * m_pMap->GetScale()));
-    m_vecDebuffTiles.reserve(3);
+    m_vecDangerTiles.reserve(m_pMap->GetMaxDangerTiles());
+    m_vecDebuffTiles.reserve(m_pMap->GetMaxDebuffTiles());
+    m_vecBuffTiles.reserve(m_pMap->GetMaxBuffTiles());
+    m_LastMaxPointTiles = m_pMap->GetMaxPointTiles();
     LoadBest();
 
 	m_OverlayTimer = 0;
@@ -109,6 +111,9 @@ void Game::Cleanup( )
 	m_vecDangerTiles.shrink_to_fit();
 	m_vecDebuffTiles.clear();
 	m_vecDebuffTiles.shrink_to_fit();
+
+    m_vecBuffTiles.clear();
+    m_vecBuffTiles.shrink_to_fit();
 }
 
 void Game::Update( float elapsedSec )
@@ -169,43 +174,60 @@ void Game::Update( float elapsedSec )
 				}
 				*/
 			}
-			if (m_pMap->GetMaxValue() < 36 )
+			m_Multiplier = 1.f + m_TotalTime / 100.f / 1.5f;
+			int curMaxPoints = m_pMap->GetMaxPointTiles();
+			if (curMaxPoints > m_LastMaxPointTiles)
 			{
-				m_pMap->SetMaxValue(20 + static_cast<int>(m_TotalTime/5));
+				int need = curMaxPoints - m_LastMaxPointTiles;
+				for (int i = 0; i < need; ++i)
+				{
+					m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+
+				}
+				m_LastMaxPointTiles = curMaxPoints;
 			}
-			if (m_AttackTimer >= 4.f) 
+			if (m_TotalTime < 180)
+			{
+				if (m_pMap->GetMaxValue() < 36)
+				{
+					m_pMap->SetMaxValue(16 + static_cast<int>(m_TotalTime / 5));
+				}
+			} 
+			std::cout << m_Multiplier << std::endl;
+			if (m_AttackTimer >= 10.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
 				if (m_AttackSpawnTime > 5.f)
 				{
-					m_AttackSpawnTime -= 0.5f;
+					//m_AttackSpawnTime -= 0.5f;
 				}
-				m_Multiplier += 0.1f;
+				
                 bool isHex = m_pMap->IsHexMode();
-				/*
-               // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-               // m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-0.5f, -1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-                // Spawn attacks for two principal axes; AttackManager will also spawn from the opposite
-                m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-				if (isHex)
+				if (m_TotalTime > 120)
 				{
-
-					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-0.5f, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-				} 
-				else
-				{
-					m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(0, 1).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), isHex);
-
+					const int
+						range{ 16 + rand() % 24 },
+						offset{ rand() % (36 - range) },
+						rows{ m_pMap->GetNumRows() };
+					const float
+						cols{ 1.f * m_pMap->GetNumCols() },
+						ratio{ 1.67f };
+					m_pMap->SetMaxValue(range);
+					m_pMap->SetMinValue(offset);
+					if (m_Multiplier > 2.f)
+					{
+						/*if (cols / rows <= ratio)
+						{
+							m_pMap->IncreaseCols();
+						}
+						else
+						{
+							m_pMap->IncreaseRows();
+						}*/
+					}
+					
 				}
-                //m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(cos(0), sin(0)).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-                //m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(cos(90), sin(90)).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-				//std::cout << cos(0.f/180*M_PI) << ", " << sin(0.f/180*M_PI) << std::endl;
-				//std::cout << cos(90.f/180*M_PI) << ", " << sin(90.f/180*M_PI) << std::endl;
-				//   m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-              //  m_pAttackManager->SpawnAlteratingAttack(1, m_pMap->GetTileSize() * 2, Vector2f(-1, 0).Normalized(), m_pMap->GetWidth(), m_pMap->GetHeight(), false);
-				m_pAttackManager->IncreaseAttackSpeed();
-				*/
+
 			}
 			if ( !m_PointsSpawned)
 			{
@@ -337,7 +359,37 @@ void Game::Update( float elapsedSec )
                 if (m_BuffSpawnTimer <= 0.f)
                 {
                     m_BuffSpawnTimer = m_BuffSpawnTimerMax;
-                    PlaceReplacement(Tile::State::buff);
+                    // spawn up to max buff tiles, replacing old ones if necessary
+                    int want = m_pMap->GetMaxBuffTiles();
+                    // clear existing buff tiles on map
+				for (const Vector2i &p : m_vecBuffTiles) m_pMap->RemoveTileModifier(p);
+				m_vecBuffTiles.clear();
+                    // Place up to 'want' buff tiles
+                    for (int i = 0; i < want; ++i)
+                    {
+                        Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                        if (spawned == m_pPlayer->GetPosition())
+                        {
+                            // fallback to any available tile
+                            const int cols = static_cast<int>(m_pMap->GetWidth() / m_pMap->GetTileSize());
+                            const int rows = static_cast<int>(m_pMap->GetHeight() / m_pMap->GetTileSize());
+                            std::vector<Vector2i> candidates;
+                            for (int y = 0; y < rows; ++y)
+                            {
+                                for (int x = 0; x < cols; ++x)
+                                {
+                                    Vector2i p(x,y);
+                                    if (p == m_pPlayer->GetPosition()) continue;
+                                    Tile::State st = m_pMap->GetTileState(p);
+                                    if (st == Tile::State::normal || st == Tile::State::preparing)
+                                        candidates.push_back(p);
+                                }
+                            }
+                            if (!candidates.empty()) spawned = candidates[rand() % static_cast<int>(candidates.size())];
+                        }
+                        m_pMap->SetTileState(spawned, Tile::State::buff);
+                        m_vecBuffTiles.push_back(spawned);
+                    }
                 }
             }
             else
@@ -722,9 +774,9 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 
 					float dist = Vector2f(m_pPlayer->GetPosition().x - length.x, m_pPlayer->GetPosition().y - length.y).Length();
 					m_MultiplierTimer += dist / m_Multiplier;
-					if (m_MultiplierTimer > 7.5)
+					if (m_MultiplierTimer > 10)
 					{
-						m_MultiplierTimer = 7.5;
+						m_MultiplierTimer = 10;
 					}
 					m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
 					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
@@ -985,19 +1037,17 @@ void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
 
 void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )
 {
-	//std::cout << "MOUSEBUTTONDOWN event: ";
-	//switch ( e.button )
-	//{
-	//case SDL_BUTTON_LEFT:
-	//	std::cout << " left button " << std::endl;
-	//	break;
-	//case SDL_BUTTON_RIGHT:
-	//	std::cout << " right button " << std::endl;
-	//	break;
-	//case SDL_BUTTON_MIDDLE:
-	//	std::cout << " middle button " << std::endl;
-	//	break;
-	//}
+	switch ( e.button )
+	{
+	case SDL_BUTTON_LEFT:
+		m_pMap->IncreaseCols(1);
+		break;
+	case SDL_BUTTON_RIGHT:
+		m_pMap->IncreaseRows(1);
+		break;
+	case SDL_BUTTON_MIDDLE:
+		break;
+	}
 
 
 }

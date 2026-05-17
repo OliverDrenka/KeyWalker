@@ -52,6 +52,7 @@ private:
 
 	std::vector<Vector2i> m_vecDangerTiles;
 	std::vector<Vector2i> m_vecDebuffTiles;
+    std::vector<Vector2i> m_vecBuffTiles;
 
 	TTF_Font* m_pFont;
 	Texture* m_pStartText;
@@ -71,6 +72,9 @@ private:
 	
 	bool m_PointsSpawned;
 
+    // track last known maxima to react to increases
+    int m_LastMaxPointTiles{0};
+
 	SoundEffect* m_pSoundPreparedTile;
     SoundEffect* m_pSoundButtonPress;
     SoundEffect* m_pSoundHit;
@@ -85,7 +89,7 @@ private:
 	float m_BestScore;
 
 	float m_MultiplierTimer;
-	int m_Multiplier;
+	float m_Multiplier;
 
 	bool m_TimerStarted;
 
