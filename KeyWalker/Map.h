@@ -37,6 +37,10 @@ public:
 	const Vector2i GetAdjecentTileDirection( Vector2i position, int value );
 	
 	const Vector2i CreateRandomPointTile(const Vector2i playerpos);
+    // Find a random tile suitable for modifiers (does not change state)
+    const Vector2i FindRandomNormalTile(const Vector2i playerpos);
+    // Clear a point tile at the given position (only player should call this)
+    void ClearPointAt(const Vector2i position);
 	void SetTileState(const Vector2i playerpos, const Tile::State state);
 	void RemoveTileModifier(const Vector2i position);
 	const Tile::State GetTileState(Vector2i position) const;

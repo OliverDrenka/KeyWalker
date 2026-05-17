@@ -5,6 +5,7 @@
 #include "utils.h"
 #include <cmath>
 #include <algorithm>
+#include <limits>
 #include <vector>
 #include <deque>
 
@@ -26,6 +27,78 @@ Map::Map()
 	m_Scale = 16.f / m_TileSize;
 	m_Grid = new Grid(10 * m_Scale, 6 * m_Scale);
 	m_PrevVisible.assign(m_Grid->GetNumCols() * m_Grid->GetNumRows(), 0);
+}
+
+const Vector2i Map::FindRandomNormalTile(const Vector2i playerpos)
+{
+    const int cols = m_Grid->GetNumCols();
+    const int rows = m_Grid->GetNumRows();
+    const int requiredDistance = 2;
+
+    auto squareDist = [&](const Vector2i& a, const Vector2i& b) -> int
+    {
+        int dx = std::abs(a.x - b.x);
+        int dy = std::abs(a.y - b.y);
+        dx = std::min(dx, cols - dx);
+        dy = std::min(dy, rows - dy);
+        return std::max(dx, dy);
+    };
+
+    auto hexDist = [&](const Vector2i& a, const Vector2i& b) -> int
+    {
+        auto oddr_to_cube = [](int col, int row, int& cx, int& cy, int& cz)
+        {
+            int q = col - (row - (row & 1)) / 2;
+            int r = row;
+            cx = q; cz = r; cy = -cx - cz;
+        };
+        int best = std::numeric_limits<int>::max();
+        for (int sx = -1; sx <= 1; ++sx)
+        for (int sy = -1; sy <= 1; ++sy)
+        {
+            Vector2i bshift(b.x + sx * cols, b.y + sy * rows);
+            int ax, ay, az, bx, by, bz;
+            oddr_to_cube(a.x, a.y, ax, ay, az);
+            oddr_to_cube(bshift.x, bshift.y, bx, by, bz);
+            int d = (std::abs(ax - bx) + std::abs(ay - by) + std::abs(az - bz)) / 2;
+            if (d < best) best = d;
+        }
+        return best == std::numeric_limits<int>::max() ? 0 : best;
+    };
+
+    // try random picks
+    for (int i = 0; i < 200; ++i)
+    {
+        int x = rand() % cols;
+        int y = rand() % rows;
+        Tile::State st = m_Grid->GetTileState(x, y);
+        if (st != Tile::State::normal && st != Tile::State::preparing) continue;
+        Vector2i cand(x, y);
+        int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
+        if (d >= requiredDistance) return cand;
+    }
+
+    // fallback scan
+    for (int ry = 0; ry < rows; ++ry)
+    for (int rx = 0; rx < cols; ++rx)
+    {
+        Tile::State st = m_Grid->GetTileState(rx, ry);
+        if (st != Tile::State::normal && st != Tile::State::preparing) continue;
+        Vector2i cand(rx, ry);
+        int d = m_IsHexMode ? hexDist(playerpos, cand) : squareDist(playerpos, cand);
+        if (d >= requiredDistance) return cand;
+    }
+
+    return playerpos;
+}
+
+void Map::ClearPointAt(const Vector2i position)
+{
+    // Only clear if it is a point -- used when player picks one up
+    if (m_Grid->GetTileState(position.x, position.y) == Tile::State::point)
+    {
+        m_Grid->SetTileState(position.x, position.y, Tile::State::normal);
+    }
 }
 
 int Map::GetMaxDangerTiles() const
@@ -771,18 +844,19 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 		}
 	}
 
-	// Last-resort: pick any normal tile (no tile meets distance requirement)
-	for (int ry = 0; ry < rows; ++ry)
-	{
-		for (int rx = 0; rx < cols; ++rx)
-		{
-			if (m_Grid->GetTileState(rx, ry) != Tile::State::normal && m_Grid->GetTileState(rx, ry) != Tile::State::preparing)
-			{
-				m_Grid->SetTileState(rx, ry, Tile::State::point);
-				return Vector2i(rx, ry);
-			}
-		}
-	}
+    // Last-resort: pick any normal or preparing tile (no tile meets distance requirement)
+    for (int ry = 0; ry < rows; ++ry)
+    {
+        for (int rx = 0; rx < cols; ++rx)
+        {
+            Tile::State st = m_Grid->GetTileState(rx, ry);
+            if (st == Tile::State::normal || st == Tile::State::preparing)
+            {
+                m_Grid->SetTileState(rx, ry, Tile::State::point);
+                return Vector2i(rx, ry);
+            }
+        }
+    }
 
 	// No normal tiles exist; return player position as fallback
 	return playerpos;
@@ -790,12 +864,29 @@ const Vector2i Map::CreateRandomPointTile(const Vector2i playerpos)
 
 void Map::SetTileState(const Vector2i playerpos, const Tile::State state)
 {
-	m_Grid->SetTileState(playerpos.x, playerpos.y, state);
+    // Prevent accidental clearing of point tiles via generic setters: only allow
+    // explicit ClearPointAt to remove points. Other callers may still change
+    // point -> something else but normal clears are ignored here.
+    Tile::State oldState = m_Grid->GetTileState(playerpos.x, playerpos.y);
+    if (oldState == Tile::State::point && state == Tile::State::normal)
+    {
+        return;
+    }
+    if (oldState != state)
+    {
+        m_Grid->SetTileState(playerpos.x, playerpos.y, state);
+    }
 }
 
 void Map::RemoveTileModifier(const Vector2i position)
 {
-	m_Grid->SetTileState(position.x, position.y, Tile::State::normal);
+    // Do not clear point tiles here. Points should only be cleared when the player collects them.
+    Tile::State old = m_Grid->GetTileState(position.x, position.y);
+    if (old == Tile::State::point)
+    {
+        return;
+    }
+    m_Grid->SetTileState(position.x, position.y, Tile::State::normal);
 }
 
 const Tile::State Map::GetTileState(Vector2i position) const
@@ -991,6 +1082,17 @@ const float Map::GetHeight() const
 
 void Map::GenerateMapKeyboard()
 {
+    const int
+        numCols{ m_Grid->GetNumCols() },
+        numRows{ m_Grid->GetNumRows() };
+    for (int rowIdx{}; rowIdx < numRows; ++rowIdx)
+    {
+        for (int colIdx{}; colIdx < numCols; ++colIdx)
+        {
+            const int value{ (rowIdx * numCols + colIdx) % 36 };
+            m_Grid->SetTile(colIdx, rowIdx, value);
+        }
+    }
 }
 
 void Map::GenerateMapRandom()

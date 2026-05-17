@@ -64,6 +64,12 @@ private:
 	Texture* m_pHpText;
 	Texture* m_pInfoText;
 
+	// on-screen debug indicators
+	Texture* m_pRangeText;
+	Texture* m_pMultiplierText;
+	std::string m_LastRangeText;
+	std::string m_LastMultiplierText;
+
 
 	float m_AttackTimer;
 	float m_AttackSpawnTime;

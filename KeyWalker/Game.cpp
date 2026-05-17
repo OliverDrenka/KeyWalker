@@ -28,6 +28,12 @@ void Game::Initialize( )
 	m_pBestText = new Texture("Best", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 	m_pInfoText = new Texture("Press I for Info", m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
 
+    // debug indicators - initialize to empty, actual textures created after map setup
+    m_LastRangeText.clear();
+    m_LastMultiplierText.clear();
+    m_pRangeText = nullptr;
+    m_pMultiplierText = nullptr;
+
 	m_pTitleScreen = new Texture("Resources/TitleScreen.png");
     m_pMap = new Map();
     m_pPlayer = new Player();
@@ -56,6 +62,7 @@ void Game::Initialize( )
     m_pMap->SetWrapMode(false);
     m_pMap->GenerateMapRandom();
 
+
 	m_AttackSpawnTime = 10.f;
 	m_AttackTimer = 0;
 	m_TotalTime = 0;
@@ -70,6 +77,16 @@ void Game::Initialize( )
     m_vecBuffTiles.reserve(m_pMap->GetMaxBuffTiles());
     m_LastMaxPointTiles = m_pMap->GetMaxPointTiles();
     LoadBest();
+
+    // create initial debug textures now that map exists
+    m_LastRangeText = "Range:" + std::to_string(m_pMap->GetMinValue()) + "-" + std::to_string(m_pMap->GetMaxValue());
+    char bufInit[64];
+    snprintf(bufInit, sizeof(bufInit), "Mult: %.2f", m_Multiplier);
+    m_LastMultiplierText = bufInit;
+    Texture* t1 = new Texture(m_LastRangeText, m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+    if (t1->IsCreationOk()) m_pRangeText = t1; else { delete t1; m_pRangeText = nullptr; }
+    Texture* t2 = new Texture(m_LastMultiplierText, m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+    if (t2->IsCreationOk()) m_pMultiplierText = t2; else { delete t2; m_pMultiplierText = nullptr; }
 
 	m_OverlayTimer = 0;
 	m_OverlayTimerMax = 1;
@@ -106,6 +123,8 @@ void Game::Cleanup( )
 	delete m_pHpText;
     delete m_pBestText;
 	delete m_pInfoText;
+	delete m_pRangeText;
+	delete m_pMultiplierText;
 	TTF_CloseFont( m_pFont );
 	m_vecDangerTiles.clear();
 	m_vecDangerTiles.shrink_to_fit();
@@ -186,14 +205,13 @@ void Game::Update( float elapsedSec )
 				}
 				m_LastMaxPointTiles = curMaxPoints;
 			}
-			if (m_TotalTime < 180)
+			if (m_TotalTime < 160)
 			{
 				if (m_pMap->GetMaxValue() < 36)
 				{
-					m_pMap->SetMaxValue(16 + static_cast<int>(m_TotalTime / 5));
+					m_pMap->SetMaxValue(std::min(16 + static_cast<int>(m_TotalTime / 5), 36));
 				}
 			} 
-			std::cout << m_Multiplier << std::endl;
 			if (m_AttackTimer >= 10.f) 
 			{
                 m_AttackTimer -= m_AttackSpawnTime;
@@ -203,17 +221,17 @@ void Game::Update( float elapsedSec )
 				}
 				
                 bool isHex = m_pMap->IsHexMode();
-				if (m_TotalTime > 120)
+				if (m_TotalTime > 160)
 				{
 					const int
-						range{ 16 + rand() % 24 },
-						offset{ rand() % (36 - range) },
+						range { 16 + rand() % (36 - 16 + 1)},
+						offset{ rand() % (36 - range + 1) },
 						rows{ m_pMap->GetNumRows() };
+					m_pMap->SetMaxValue(range + offset);
+					m_pMap->SetMinValue(offset);
 					const float
 						cols{ 1.f * m_pMap->GetNumCols() },
 						ratio{ 1.67f };
-					m_pMap->SetMaxValue(range);
-					m_pMap->SetMinValue(offset);
 					if (m_Multiplier > 2.f)
 					{
 						/*if (cols / rows <= ratio)
@@ -324,8 +342,9 @@ void Game::Update( float elapsedSec )
                         m_pMap->SetTileState(existing, Tile::State::normal);
                     }
 
-                    // Try to pick a tile at distance using CreateRandomPointTile
-                    Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                    // Try to pick a tile at distance using a function that does NOT
+                    // create transient point tiles for non-point modifiers
+                    Vector2i spawned = m_pMap->FindRandomNormalTile(m_pPlayer->GetPosition());
                     const Vector2i playerPos = m_pPlayer->GetPosition();
                     if (spawned == playerPos)
                     {
@@ -367,7 +386,7 @@ void Game::Update( float elapsedSec )
                     // Place up to 'want' buff tiles
                     for (int i = 0; i < want; ++i)
                     {
-                        Vector2i spawned = m_pMap->CreateRandomPointTile(m_pPlayer->GetPosition());
+                        Vector2i spawned = m_pMap->FindRandomNormalTile(m_pPlayer->GetPosition());
                         if (spawned == m_pPlayer->GetPosition())
                         {
                             // fallback to any available tile
@@ -461,6 +480,16 @@ void Game::Update( float elapsedSec )
                 m_pPlayer->Hit(1);
                 m_pSoundHit->Play(0);
 			}
+			m_LastRangeText = "Range:" + std::to_string(m_pMap->GetMinValue()) + "-" + std::to_string(m_pMap->GetMaxValue());
+			delete m_pMultiplierText;
+			delete m_pRangeText;
+			char bufInit[64];
+			snprintf(bufInit, sizeof(bufInit), "Mult: %.2f", m_Multiplier);
+			m_LastMultiplierText = bufInit;
+			Texture* t1 = new Texture(m_LastRangeText, m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+			if (t1->IsCreationOk()) m_pRangeText = t1; else { delete t1; m_pRangeText = nullptr; }
+			Texture* t2 = new Texture(m_LastMultiplierText, m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
+			if (t2->IsCreationOk()) m_pMultiplierText = t2; else { delete t2; m_pMultiplierText = nullptr; }
 			if (m_pPlayer->GetHp() <= 0)
 			{
 				m_GameState = GameState::end;
@@ -543,9 +572,32 @@ void Game::Draw() const
 				m_pOverlay->DrawSprite(Vector2f(-m_pOverlay->GetSpriteWidth() / 3 + m_pMap->GetWidth() / 2, - m_pOverlay->GetSpriteHeight() / 3.1 + m_pMap->GetHeight() / 2), 0, m_OverlayFrame);
 			}
 			glPopMatrix();
+
             m_pAttackManager->Draw();
 		}
 		glPopMatrix();
+		// draw debug indicators top-left
+		{
+			// compute positions relative to map
+			float left = -m_pMap->GetWidth() / 2 - 40.f;
+			float top = -m_pMap->GetHeight() / 2 - 10.f;
+		glPushMatrix();
+		{
+			glScalef(0.5f, 0.5f, 1.f);
+			glTranslatef(-115.f, 120.f,0.f);
+			// range text
+			if (m_pRangeText)
+			{
+				m_pRangeText->Draw(Vector2f(left, top + 6.f));
+			}
+			// multiplier under it
+			if (m_pMultiplierText)
+			{
+				m_pMultiplierText->Draw(Vector2f(left, top - 12.f));
+			}
+		}
+		glPopMatrix();
+		}
         const int
             playerHp{ m_pPlayer->GetHp() };
 		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight() + 5.f};
@@ -778,8 +830,8 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 					{
 						m_MultiplierTimer = 10;
 					}
-					m_pMap->RemoveTileModifier(m_pPlayer->GetPosition());
-					m_pMap->SetTileState(m_pPlayer->GetPosition(), Tile::State::normal);
+				// Clear point explicitly via ClearPointAt so it cannot be removed by other cleanup paths
+				m_pMap->ClearPointAt(m_pPlayer->GetPosition());
 					break;
 				}
 				case(Tile::State::heal):
