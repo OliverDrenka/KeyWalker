@@ -70,6 +70,14 @@ private:
 	std::string m_LastRangeText;
 	std::string m_LastMultiplierText;
 
+	// combined anchored UI textures (label + value) updated only when changed
+	Texture* m_pScoreCombined;
+	Texture* m_pTimeCombined;
+	Texture* m_pHpCombined;
+	std::string m_LastScoreCombined;
+	std::string m_LastTimeCombined;
+	std::string m_LastHpCombined;
+
 
 	float m_AttackTimer;
 	float m_AttackSpawnTime;
@@ -103,6 +111,10 @@ private:
 
 	float m_BuffSpawnTimer;
 	const float m_BuffSpawnTimerMax{9.5f};
+
+	// automatic map size increase timer
+	float m_MapIncreaseTimer;
+	const float m_MapIncreaseInterval{20.f};
 
     // Heal spawn: after first point pickup spawn a heal on the edge every interval
     float m_HealSpawnTimer;

@@ -20,6 +20,8 @@ public:
 
     // Add columns to the right side of the grid, preserving existing content (existing tile indices stay the same).
     void AddColsLeft(int count);
+    // Add columns to the right side of the grid, preserving existing content (existing tile indices stay the same).
+    void AddColsRight(int count);
 	// Add rows to the bottom of the grid, preserving existing content.
 	void AddRowsBottom(int count);
 

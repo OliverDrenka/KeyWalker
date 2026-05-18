@@ -62,7 +62,7 @@ void Game::Initialize( )
     m_pMap->SetWrapMode(false);
     m_pMap->GenerateMapRandom();
 
-
+	m_MapIncreaseTimer = 0.f;
 	m_AttackSpawnTime = 10.f;
 	m_AttackTimer = 0;
 	m_TotalTime = 0;
@@ -87,6 +87,26 @@ void Game::Initialize( )
     if (t1->IsCreationOk()) m_pRangeText = t1; else { delete t1; m_pRangeText = nullptr; }
     Texture* t2 = new Texture(m_LastMultiplierText, m_pFont, Color4f(0.f, 0.f, 0.f, 1.f));
     if (t2->IsCreationOk()) m_pMultiplierText = t2; else { delete t2; m_pMultiplierText = nullptr; }
+
+// create initial combined UI textures (label + value)
+{
+    char tmp[128];
+    snprintf(tmp, sizeof(tmp), "Hp: %d", m_pPlayer->GetHp());
+    m_LastHpCombined = tmp;
+    Texture* hc = new Texture(m_LastHpCombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+    if (hc->IsCreationOk()) m_pHpCombined = hc; else { delete hc; m_pHpCombined = nullptr; }
+
+    snprintf(tmp, sizeof(tmp), "Score: %d", m_Score);
+    m_LastScoreCombined = tmp;
+    Texture* sc = new Texture(m_LastScoreCombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+    if (sc->IsCreationOk()) m_pScoreCombined = sc; else { delete sc; m_pScoreCombined = nullptr; }
+
+    snprintf(tmp, sizeof(tmp), "Time: %d", static_cast<int>(m_TotalTime));
+    m_LastTimeCombined = tmp;
+    Texture* tc = new Texture(m_LastTimeCombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+    if (tc->IsCreationOk()) m_pTimeCombined = tc; else { delete tc; m_pTimeCombined = nullptr; }
+
+}
 
 	m_OverlayTimer = 0;
 	m_OverlayTimerMax = 1;
@@ -125,6 +145,9 @@ void Game::Cleanup( )
 	delete m_pInfoText;
 	delete m_pRangeText;
 	delete m_pMultiplierText;
+    delete m_pScoreCombined;
+    delete m_pTimeCombined;
+    delete m_pHpCombined;
 	TTF_CloseFont( m_pFont );
 	m_vecDangerTiles.clear();
 	m_vecDangerTiles.shrink_to_fit();
@@ -163,9 +186,17 @@ void Game::Update( float elapsedSec )
 			{
 				m_OverlayFrame = 0;
 			}
-			m_AttackTimer += elapsedSec;
+			m_MapIncreaseTimer += elapsedSec;
 			if(m_Score >= 1)
 			{
+				if (m_Multiplier < 2.f)
+				{
+					m_Multiplier += elapsedSec / 100.f / 1.5f;
+				}
+				else
+				{
+					m_Multiplier += elapsedSec / 100.f / 2.f;
+				}
 				m_TotalTime += elapsedSec;
 			}
 			if(m_MultiplierTimer > 0) 
@@ -193,7 +224,61 @@ void Game::Update( float elapsedSec )
 				}
 				*/
 			}
-			m_Multiplier = 1.f + m_TotalTime / 100.f / 1.5f;
+		
+
+		// update debug textures when range or multiplier change
+		{
+			std::string rangeText = "Range:" + std::to_string(m_pMap->GetMinValue()) + "-" + std::to_string(m_pMap->GetMaxValue());
+			if (rangeText != m_LastRangeText)
+			{
+				if (m_pRangeText) { delete m_pRangeText; m_pRangeText = nullptr; }
+				Texture* t = new Texture(rangeText, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+				if (t->IsCreationOk()) m_pRangeText = t; else delete t;
+				m_LastRangeText = rangeText;
+			}
+
+			char mbuf[64];
+			snprintf(mbuf, sizeof(mbuf), "Mult: %.2f", m_Multiplier);
+			std::string multText(mbuf);
+			if (multText != m_LastMultiplierText)
+			{
+				if (m_pMultiplierText) { delete m_pMultiplierText; m_pMultiplierText = nullptr; }
+				Texture* t = new Texture(multText, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+				if (t->IsCreationOk()) m_pMultiplierText = t; else delete t;
+				m_LastMultiplierText = multText;
+			}
+	
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Hp: %d", m_pPlayer->GetHp());
+            std::string hcombined(buf);
+            if (hcombined != m_LastHpCombined)
+            {
+                if (m_pHpCombined) { delete m_pHpCombined; m_pHpCombined = nullptr; }
+                Texture* t = new Texture(hcombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+                if (t->IsCreationOk()) m_pHpCombined = t; else delete t;
+                m_LastHpCombined = hcombined;
+            }
+
+            snprintf(buf, sizeof(buf), "Score: %d", m_Score);
+            std::string scombined(buf);
+            if (scombined != m_LastScoreCombined)
+            {
+                if (m_pScoreCombined) { delete m_pScoreCombined; m_pScoreCombined = nullptr; }
+                Texture* t = new Texture(scombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+                if (t->IsCreationOk()) m_pScoreCombined = t; else delete t;
+                m_LastScoreCombined = scombined;
+            }
+
+            snprintf(buf, sizeof(buf), "Time: %d", static_cast<int>(m_TotalTime));
+            std::string tcombined(buf);
+            if (tcombined != m_LastTimeCombined)
+            {
+                if (m_pTimeCombined) { delete m_pTimeCombined; m_pTimeCombined = nullptr; }
+                Texture* t = new Texture(tcombined, m_pFont, Color4f(0.f,0.f,0.f,1.f));
+                if (t->IsCreationOk()) m_pTimeCombined = t; else delete t;
+                m_LastTimeCombined = tcombined;
+            }
+        }
 			int curMaxPoints = m_pMap->GetMaxPointTiles();
 			if (curMaxPoints > m_LastMaxPointTiles)
 			{
@@ -212,14 +297,10 @@ void Game::Update( float elapsedSec )
 					m_pMap->SetMaxValue(std::min(16 + static_cast<int>(m_TotalTime / 5), 36));
 				}
 			} 
-			if (m_AttackTimer >= 10.f) 
+			if (m_MapIncreaseTimer >= m_MapIncreaseInterval)
 			{
-                m_AttackTimer -= m_AttackSpawnTime;
-				if (m_AttackSpawnTime > 5.f)
-				{
-					//m_AttackSpawnTime -= 0.5f;
-				}
-				
+				m_MapIncreaseTimer -= m_MapIncreaseInterval;
+
                 bool isHex = m_pMap->IsHexMode();
 				if (m_TotalTime > 160)
 				{
@@ -234,14 +315,14 @@ void Game::Update( float elapsedSec )
 						ratio{ 1.67f };
 					if (m_Multiplier > 2.f)
 					{
-						/*if (cols / rows <= ratio)
+						if (cols / rows <= ratio)
 						{
 							m_pMap->IncreaseCols();
 						}
 						else
 						{
 							m_pMap->IncreaseRows();
-						}*/
+						}
 					}
 					
 				}
@@ -520,6 +601,11 @@ void Game::Draw() const
 {
 	ClearBackground();
 	Rectf viewPort = GetViewPort();
+
+	// UI anchored to a fixed logical map size so UI doesn't move when map scales
+	static const float s_BaseMapWidth = 16.f * 10.f; // base cols=10, tile=16
+	static const float s_BaseMapHeight = 16.f * 6.f; // base rows=6, tile=16
+
 	glPushMatrix();
 	{
 		glTranslatef(viewPort.width / 2, viewPort.height / 2, 0.f);
@@ -566,21 +652,22 @@ void Game::Draw() const
 				}
 			}
             m_pPlayer->Draw(m_pMap->GetTileSize(), m_pMap->IsHexMode());
-			glPushMatrix();
-			{
-				glScalef(0.5f, 0.5f, 1.f);
-				m_pOverlay->DrawSprite(Vector2f(-m_pOverlay->GetSpriteWidth() / 3 + m_pMap->GetWidth() / 2, - m_pOverlay->GetSpriteHeight() / 3.1 + m_pMap->GetHeight() / 2), 0, m_OverlayFrame);
-			}
-			glPopMatrix();
 
             m_pAttackManager->Draw();
+		}
+		glPopMatrix();
+		glPushMatrix();
+		{
+			glScalef(0.5f, 0.5f, 1.f);
+			glTranslatef(-m_pOverlay->GetSpriteWidth()/2, -m_pOverlay->GetSpriteHeight()/2,0.f);
+			m_pOverlay->DrawSprite(Vector2f(0,0), 0, m_OverlayFrame);
 		}
 		glPopMatrix();
 		// draw debug indicators top-left
 		{
 			// compute positions relative to map
-			float left = -m_pMap->GetWidth() / 2 - 40.f;
-			float top = -m_pMap->GetHeight() / 2 - 10.f;
+			float left = -s_BaseMapWidth / 2 - 42.f;
+			float top = -s_BaseMapHeight / 2 + 40.f;
 		glPushMatrix();
 		{
 			glScalef(0.5f, 0.5f, 1.f);
@@ -595,29 +682,33 @@ void Game::Draw() const
 			{
 				m_pMultiplierText->Draw(Vector2f(left, top - 12.f));
 			}
+
+            // anchored UI labels and values: draw label first then value to ensure labels show
+            // HP
+            if (m_pHpCombined)
+            {
+				m_pHpCombined->Draw(Vector2f(left , top - 30.f));
+            }
+
+            // Score
+            if (m_pScoreCombined)
+            {
+                m_pScoreCombined->Draw(Vector2f(left, top - 48.f));
+            }
+
+            // Time
+            if (m_pTimeCombined)
+            {
+                m_pTimeCombined->Draw(Vector2f(left, top - 66.f));
+            }
+
 		}
 		glPopMatrix();
 		}
-        const int
-            playerHp{ m_pPlayer->GetHp() };
-		const float y{ m_pMap->GetHeight() / 2 + m_pHpText->GetHeight() + 5.f};
+        const int playerHp{ m_pPlayer->GetHp() };
+        const float y{ s_BaseMapHeight / 2 + m_pHpText->GetHeight() + 5.f };
 
-		glScalef(0.8f, 0.8f, 1.f);
-		//Hp
-		m_pHpText->Draw(Vector2f(-m_pMap->GetWidth() / 2 - m_pHpText->GetWidth(), y));
-        m_pLetters->DrawSprite(Vector2f(-m_pMap->GetWidth() / 2, y + 3.f), 26 + playerHp);
-
-		//Score
-		m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth()/2 - 30,y ));
-		m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f, y + 3.f), 26 + static_cast<int>(m_Score) % 10);
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f, y + 3.f), 26 + (static_cast<int>(m_Score) / 10 % 10));
-        m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f, y + 3.f), 26 + (static_cast<int>(m_Score) / 100 % 10));
-		
-       //Time
-		m_pTimeText->Draw(Vector2f(m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, y));
-		m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 10.f, y + 3.f), 26 + static_cast<int>(m_TotalTime) % 10);
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 + 0.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 10 % 10));
-        m_pLetters->DrawSprite(Vector2f( m_pMap->GetWidth()/2 - 10.f, y + 3.f), 26 + (static_cast<int>(m_TotalTime) / 100 % 10));
+        // UI drawing for HP/Score/Time moved to the debug UI block so position/size match Range/Multiplier
 
 		if (m_Easy)
 		{

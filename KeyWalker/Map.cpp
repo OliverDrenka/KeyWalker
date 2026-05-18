@@ -1114,7 +1114,15 @@ void Map::GenerateMapRandom()
 void Map::IncreaseCols(int count)
 {
 	if (count <= 0) return;
-	m_Grid->AddColsLeft(count);
+
+	// preserve prev-visible before changing grid
+	const int oldCols = m_Grid->GetNumCols();
+	const int oldRows = m_Grid->GetNumRows();
+	std::vector<char> oldPrev = m_PrevVisible;
+
+	// Add columns to the right so existing indices remain valid
+	m_Grid->AddColsRight(count);
+
 	// Recompute tile size and scale so the map keeps a reasonable world size
 	{
 		const float baseTile = 16.f;
@@ -1131,36 +1139,60 @@ void Map::IncreaseCols(int count)
 		m_Scale = baseTile / m_TileSize;
 	}
 
-	// Resize/clear visibility buffers so they match the new grid size.
-	const size_t newSize = static_cast<size_t>(m_Grid->GetNumCols() * m_Grid->GetNumRows());
-	m_PrevVisible.assign(newSize, 0);
+	// Resize visibility buffers preserving previous content in the left part of each row
+	const int newCols = m_Grid->GetNumCols();
+	const int newRows = m_Grid->GetNumRows();
+	std::vector<char> newPrev(static_cast<size_t>(newCols * newRows), 0);
+	for (int r = 0; r < oldRows; ++r)
+	{
+		for (int c = 0; c < oldCols; ++c)
+		{
+			newPrev[r * newCols + c] = ( (r * oldCols + c) < static_cast<int>(oldPrev.size()) ) ? oldPrev[r * oldCols + c] : 0;
+		}
+	}
+	m_PrevVisible.swap(newPrev);
 	m_CurrentVisible.clear();
 }
 
 void Map::IncreaseRows(int count)
 {
-	if (count <= 0) return;
-	m_Grid->AddRowsBottom(count);
-	// Recompute tile size and scale so the map keeps a reasonable world size
-	{
-		const float baseTile = 16.f;
-		const float baseCols = 10.f;
-		const float baseRows = 6.f;
-		const int cols = m_Grid->GetNumCols();
-		const int rows = m_Grid->GetNumRows();
-		const float baseWidth = baseTile * baseCols;
-		const float baseHeight = baseTile * baseRows;
-		// choose tile size so the map fits inside the original world rectangle
-		float tileSize = std::min(baseWidth / static_cast<float>(cols), baseHeight / static_cast<float>(rows));
-		if (tileSize < 1.f) tileSize = 1.f;
-		m_TileSize = tileSize;
-		m_Scale = baseTile / m_TileSize;
-	}
+    if (count <= 0) return;
 
-	// Resize/clear visibility buffers so they match the new grid size.
-	const size_t newSize = static_cast<size_t>(m_Grid->GetNumCols() * m_Grid->GetNumRows());
-	m_PrevVisible.assign(newSize, 0);
-	m_CurrentVisible.clear();
+    // preserve prev-visible before changing grid
+    const int oldCols = m_Grid->GetNumCols();
+    const int oldRows = m_Grid->GetNumRows();
+    std::vector<char> oldPrev = m_PrevVisible;
+
+    m_Grid->AddRowsBottom(count);
+    // Recompute tile size and scale so the map keeps a reasonable world size
+    {
+        const float baseTile = 16.f;
+        const float baseCols = 10.f;
+        const float baseRows = 6.f;
+        const int cols = m_Grid->GetNumCols();
+        const int rows = m_Grid->GetNumRows();
+        const float baseWidth = baseTile * baseCols;
+        const float baseHeight = baseTile * baseRows;
+        // choose tile size so the map fits inside the original world rectangle
+        float tileSize = std::min(baseWidth / static_cast<float>(cols), baseHeight / static_cast<float>(rows));
+        if (tileSize < 1.f) tileSize = 1.f;
+        m_TileSize = tileSize;
+        m_Scale = baseTile / m_TileSize;
+    }
+
+    // Resize visibility buffers preserving previous content in the top rows
+    const int newCols = m_Grid->GetNumCols();
+    const int newRows = m_Grid->GetNumRows();
+    std::vector<char> newPrev(static_cast<size_t>(newCols * newRows), 0);
+    for (int r = 0; r < oldRows; ++r)
+    {
+        for (int c = 0; c < oldCols; ++c)
+        {
+            newPrev[r * newCols + c] = ( (r * oldCols + c) < static_cast<int>(oldPrev.size()) ) ? oldPrev[r * oldCols + c] : 0;
+        }
+    }
+    m_PrevVisible.swap(newPrev);
+    m_CurrentVisible.clear();
 }
 
 const int Map::GetNumRows() const

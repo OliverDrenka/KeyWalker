@@ -77,6 +77,28 @@ void Grid::AddColsLeft(int count)
 	m_GridSize = newSize;
 }
 
+void Grid::AddColsRight(int count)
+{
+    if (count <= 0) return;
+    int newCols = m_Cols + count;
+    int newSize = newCols * m_Rows;
+    Tile* newGrid = new Tile[newSize]();
+
+    // copy each row, preserving columns at same indices (existing stay left)
+    for (int row = 0; row < m_Rows; ++row)
+    {
+        for (int col = 0; col < m_Cols; ++col)
+        {
+            newGrid[row * newCols + col] = m_Grid[row * m_Cols + col];
+        }
+    }
+
+    delete[] m_Grid;
+    m_Grid = newGrid;
+    m_Cols = newCols;
+    m_GridSize = newSize;
+}
+
 void Grid::AddRowsBottom(int count)
 {
 	if (count <= 0) return;
