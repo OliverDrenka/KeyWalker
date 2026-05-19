@@ -83,13 +83,13 @@ void Player::Draw(const float tileSize, bool hexMode) const
         Vector2f drawPos{ center.x - (playerDestW * 0.5f), center.y - (playerDestH * 0.5f) };
         m_SpriteSheet->DrawSprite(drawPos, 2, 2, playerDestW, playerDestH);
 		const float
-			statusBarWidth{11.f / 10.f * m_BuffTimer },
-			debuffBarWidth{11.f / 10.f * m_DebuffTimer };
-	
+			statusBarWidth{11.f / 10.f * m_BuffTimer * playerScale },
+			debuffBarWidth{ 11.f / 10.f * m_DebuffTimer * playerScale };
+
 		utils::SetColor(Color4f(10.f / 255.f, 222.f / 255.f, 241.f / 255.f, 1.f));
-		utils::FillRect(drawPos.x + playerW/2 - statusBarWidth/2, drawPos.y + 9.2f, statusBarWidth, 2.4f);
+		utils::FillRect(drawPos.x + playerDestW /2 - statusBarWidth/2, drawPos.y + 9.2f * playerScale, statusBarWidth, 2.4f* playerScale);
 		utils::SetColor(Color4f(118.f / 255.f, 45.f / 255.f, 255.f / 255.f, 1.f));
-		utils::FillRect(drawPos.x + playerW/2 - debuffBarWidth /2, drawPos.y + 2.5f, debuffBarWidth, 2.4);
+		utils::FillRect(drawPos.x + playerDestW /2 - debuffBarWidth /2, drawPos.y + 2.5f * playerScale, debuffBarWidth, 2.4* playerScale);
         m_SpriteSheet->DrawSprite(drawPos, m_SpriteIdx,m_Hp - 1, playerDestW, playerDestH);
     }
     else
@@ -110,9 +110,9 @@ void Player::Draw(const float tileSize, bool hexMode) const
 			debuffBarWidth{ 11.f / 10.f * m_DebuffTimer };
 
 		utils::SetColor(Color4f(10.f / 255.f, 222.f / 255.f, 241.f / 255.f, 1.f));
-		utils::FillRect(position.x + playerW / 2 - statusBarWidth / 2, position.y + 9.2f, statusBarWidth, 2.4f);
+		utils::FillRect(position.x + playerDestW / 2 - statusBarWidth / 2, position.y + 9.2f * playerScale, statusBarWidth, 2.4f * playerScale);
 		utils::SetColor(Color4f(118.f / 255.f, 45.f / 255.f, 255.f / 255.f, 1.f));
-		utils::FillRect(position.x + playerW / 2 - debuffBarWidth / 2, position.y + 2.5f, debuffBarWidth, 2.4);
+		utils::FillRect(position.x + playerDestW / 2 - debuffBarWidth / 2, position.y + 2.5f * playerScale, debuffBarWidth, 2.4 * playerScale);
 		m_SpriteSheet->DrawSprite(position, m_SpriteIdx, m_Hp - 1, playerDestW, playerDestH);
     }
 }

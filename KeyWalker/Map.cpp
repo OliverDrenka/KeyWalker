@@ -216,6 +216,11 @@ void Map::SetRevealedMode(bool revealed)
 	m_IsRevealed = revealed;
 }
 
+void Map::SetZeroVisionDuringPause(bool v)
+{
+    m_ZeroVisionDuringPause = v;
+}
+
 bool Map::IsRevealed() const
 {
 	return m_IsRevealed;
@@ -257,9 +262,12 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 	Vector2f letterPosition{ position.x + ((letterW / 2.f) - 1.5f) * letterScale,
 							 position.y + (letterH / 2.f) * letterScale };
 
-	// Precompute visibility mask if player position given
-	std::vector<char> visible;
-	if (pPlayerPosition && !(m_IsRevealed && !m_IsBlind))
+    // Precompute visibility mask if player position given. If the map is in
+    // zero-vision-during-pause mode, treat the provided player pointer as
+    // absent so no player-anchored visibility is computed.
+    const Vector2i* pPlayerPtr = (m_ZeroVisionDuringPause && pPlayerPosition) ? nullptr : pPlayerPosition;
+    std::vector<char> visible;
+    if (pPlayerPtr && !(m_IsRevealed && !m_IsBlind))
 	{
 		visible.assign(numCols * numRows, 0);
 		// ensure previous-visible mask matches grid size
@@ -537,7 +545,7 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 			{
 				// draw tile texture scaled to the current tile size
 				int spriteRowHex;
-				if (pPlayerPosition)
+                if (pPlayerPtr)
 				{
 					bool isVisible = (visible[rowIdx * numCols + colIdx] != 0);
 					spriteRowHex = isVisible ? 0 : (m_IsBlind ? 2 : 1);
@@ -553,10 +561,11 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 				}
 				m_TileTexture->DrawSprite(tilePosition, static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), spriteRowHex, m_TileSize, m_TileSize);
 
-				bool showLetter = true;
-				if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
-				// newly visible? randomize tile (only when tile becomes visible)
-				if (pPlayerPosition && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
+                // Default to not showing letters when no player-provided visibility (e.g. paused)
+                bool showLetter = false;
+                if (pPlayerPtr) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
+                // newly visible? randomize tile (only when tile becomes visible)
+                if (pPlayerPtr && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
 				{
 					RandomizeTile(Vector2i(colIdx, rowIdx));
 				}
@@ -600,7 +609,7 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 
 				// draw tile texture scaled to tile size
 				int spriteRowHex;
-				if (pPlayerPosition)
+                if (pPlayerPtr)
 				{
 					bool isVisible = (visible[rowIdx * numCols + colIdx] != 0);
 					spriteRowHex = isVisible ? 0 : (m_IsBlind ? 2 : 1);
@@ -615,10 +624,11 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 					spriteRowHex += 3;
 				}
 				m_TileTexture->DrawSprite(Vector2f(x, y), static_cast<int>(GetTileState(Vector2i(colIdx, rowIdx))), spriteRowHex, m_TileSize, m_TileSize);
-				bool showLetter = true;
-				if (pPlayerPosition) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
-				// newly visible? randomize tile (only when tile becomes visible)
-				if (pPlayerPosition && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
+                // Default to not showing letters when no player-provided visibility (e.g. paused)
+                bool showLetter = false;
+                if (pPlayerPtr) showLetter = (visible[rowIdx * numCols + colIdx] != 0);
+                // newly visible? randomize tile (only when tile becomes visible)
+                if (pPlayerPtr && visible[rowIdx * numCols + colIdx] && !m_PrevVisible[rowIdx * numCols + colIdx])
 				{
 					RandomizeTile(Vector2i(colIdx, rowIdx));
 				}
@@ -640,8 +650,8 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 
 	}
 
-	// update previous visibility mask for both square and hex modes
-	if (pPlayerPosition)
+    // update previous visibility mask for both square and hex modes
+    if (pPlayerPtr)
 	{
 		if (m_PrevVisible.size() != visible.size()) m_PrevVisible.assign(visible.size(), 0);
 		m_PrevVisible = visible;

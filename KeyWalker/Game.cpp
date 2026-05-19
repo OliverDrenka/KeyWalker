@@ -670,12 +670,12 @@ void Game::Draw() const
 			float top = -s_BaseMapHeight / 2 + 40.f;
 		glPushMatrix();
 		{
-			glScalef(0.5f, 0.5f, 1.f);
-			glTranslatef(-115.f, 120.f,0.f);
+			glScalef(0.4f, 0.4f, 1.f);
+			glTranslatef(-170.f, 100.f,0.f);
 			// range text
 			if (m_pRangeText)
 			{
-				m_pRangeText->Draw(Vector2f(left, top + 6.f));
+				m_pRangeText->Draw(Vector2f(left, top - 66.f));
 			}
 			// multiplier under it
 			if (m_pMultiplierText)
@@ -693,13 +693,13 @@ void Game::Draw() const
             // Score
             if (m_pScoreCombined)
             {
-                m_pScoreCombined->Draw(Vector2f(left, top - 48.f));
+                m_pScoreCombined->Draw(Vector2f(left, top + 6));
             }
 
             // Time
             if (m_pTimeCombined)
             {
-                m_pTimeCombined->Draw(Vector2f(left, top - 66.f));
+                m_pTimeCombined->Draw(Vector2f(left, top - 48.f));
             }
 
 		}
@@ -712,8 +712,13 @@ void Game::Draw() const
 
 		if (m_Easy)
 		{
-			utils::SetColor(Color4f(0.f, 1.f, 0.f, 1.f));
-			utils::FillEllipse(Vector2f(120, 73.5), 8, 8);
+			glPushMatrix();
+			{
+				glScalef(0.8f, 0.8f, 1.f);
+				utils::SetColor(Color4f(0.f, 1.f, 0.f, 1.f));
+				utils::FillEllipse(Vector2f(120, 73.5), 8, 8);
+			}
+			glPopMatrix();
 		}
 
 
@@ -734,13 +739,18 @@ void Game::Draw() const
 			}
 			case GameState::gameplay:
 			{
-				utils::SetColor(Color4f(1.f, 2.f/m_Multiplier, 0.f, 1.f));
-				const float
-					x{0},
-					yPos{-GetViewPort().height/16 - 10.f},
-					width{m_MultiplierTimer * 30 / 2 - 5.f},
-					height{8};
-				utils::FillRect(x-width / 2 , yPos, width, height);
+				glPushMatrix();
+				{
+					glScalef(0.8f, 0.8f, 1.f);
+					utils::SetColor(Color4f(1.f, 2.f/m_Multiplier, 0.f, 1.f));
+					const float
+						x{0},
+						yPos{-GetViewPort().height/16 - 10.f},
+						width{m_MultiplierTimer * 30 / 2 - 5.f},
+						height{8};
+					utils::FillRect(x-width / 2 , yPos, width, height);
+				}
+				glPopMatrix();
 				break;
 			}
 			case GameState::paused:
@@ -819,6 +829,8 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
         if (key == SDLK_ESCAPE)
         {
             m_GameState = GameState::paused;
+            // Hide player vision while paused
+            m_pMap->SetZeroVisionDuringPause(true);
             break;
         }
       
@@ -1103,7 +1115,9 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 			}
 			case(SDLK_ESCAPE):
 			{
-				m_GameState = GameState::gameplay;
+                m_GameState = GameState::gameplay;
+                // restore vision when unpausing
+                m_pMap->SetZeroVisionDuringPause(false);
 				break;
 			}
 		}
@@ -1183,10 +1197,10 @@ void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )
 	switch ( e.button )
 	{
 	case SDL_BUTTON_LEFT:
-		m_pMap->IncreaseCols(1);
+		//m_pMap->IncreaseCols(1);
 		break;
 	case SDL_BUTTON_RIGHT:
-		m_pMap->IncreaseRows(1);
+		//m_pMap->IncreaseRows(1);
 		break;
 	case SDL_BUTTON_MIDDLE:
 		break;
@@ -1215,6 +1229,11 @@ void Game::ProcessMouseUpEvent( const SDL_MouseButtonEvent& e )
 void Game::ClearBackground( ) const
 {
 	glClearColor( 116.f/255.f, 116.f/255.f, 116.f/255.f, 1.0f );
+	/*const float
+		r{ (m_Multiplier - static_cast<int>(m_Multiplier)) },
+		g{ (m_Multiplier - static_cast<int>(m_Multiplier))/2.f },
+		b{ (m_Multiplier - static_cast<int>(m_Multiplier))/3.f };
+	glClearColor( r, g, b, 1.0f );*/
 	glClear( GL_COLOR_BUFFER_BIT );
 }
 

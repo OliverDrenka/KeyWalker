@@ -91,6 +91,9 @@ private:
     std::vector<char> m_PrevVisible;
     // Current visibility mask (set during Draw). If empty, treat all tiles as visible.
     std::vector<char> m_CurrentVisible;
+    // When true, and Draw() is called with a player position, treat the player's
+    // visibility as empty (no tiles visible). Used by Game while paused.
+    bool m_ZeroVisionDuringPause{ false };
 
 public:
     // Get computed maxima (based on scale * multiplier). These update automatically when scale changes.
@@ -104,6 +107,10 @@ public:
     void SetMaxDebuffMultiplier(int m);
     void SetMaxPointMultiplier(int m);
     void SetMaxBuffMultiplier(int m);
+
+    // When true, Draw() will treat player visibility as empty (no visible tiles)
+    // when a player position is provided. The Game toggles this while paused.
+    void SetZeroVisionDuringPause(bool v);
 
 };
 
