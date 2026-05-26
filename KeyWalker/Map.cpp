@@ -882,6 +882,19 @@ void Map::SetTileState(const Vector2i playerpos, const Tile::State state)
     {
         return;
     }
+
+    // Ensure that certain special tiles only spawn over normal or preparing tiles
+    // to avoid overwriting danger/debuff/etc accidentally (reported bug: buff
+    // spawning over danger). Only enforce for point, buff, and heal spawns.
+    if (state == Tile::State::point || state == Tile::State::buff || state == Tile::State::heal)
+    {
+        if (!(oldState == Tile::State::normal || oldState == Tile::State::preparing))
+        {
+            // do not overwrite non-normal/preparing tiles
+            return;
+        }
+    }
+
     if (oldState != state)
     {
         m_Grid->SetTileState(playerpos.x, playerpos.y, state);

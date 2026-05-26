@@ -761,23 +761,23 @@ void Game::Draw() const
 				glPushMatrix();
 				{
 
-					glScalef(0.6f, 0.6f, 1.f);
+					glScalef(0.5f, 0.5f, 1.f);
 					m_pInfoText->Draw(Vector2f(-m_pPauseText->GetWidth() / 2, -m_pInfoText->GetHeight()));
 
 					//BestScore
-					m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth() / 2 - m_pBestText->GetWidth() / 2 - 23.f, -50 - y - 13.f));
-					m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - 23.f, -50 - y - 13.f));
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f - 23.f, -50 - 1 * y - 10.f), 26 + static_cast<int>(m_BestScore) % 10);
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f - 23.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
-					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f - 23.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
+					m_pBestText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - m_pScoreText->GetWidth() / 2 - m_pBestText->GetWidth() / 2 - 23.f, -50 - y - 13.f + 5.f));
+					m_pScoreText->Draw(Vector2f(-m_pScoreText->GetWidth() / 2 - 30.f - 23.f, -50 - y - 13.f + 5.f));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 30.f - 23.f, -50 - 1 * y - 10.f + 5.f), 26 + static_cast<int>(m_BestScore) % 10);
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 20.f - 23.f, -50 - 1 * y - 10.f + 5.f), 26 + (static_cast<int>(m_BestScore) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(-m_pScoreText->GetWidth() / 2 + 10.f - 23.f, -50 - 1 * y - 10.f + 5.f), 26 + (static_cast<int>(m_BestScore) / 100 % 10));
 
 
 					//BestTime
-					m_pBestText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(), -50 - y - 13.f));
-					m_pTimeText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50 - y - 13.f));
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 10.f, -50 - 1 * y - 10.f), 26 + static_cast<int>(m_BestTime) % 10);
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 0.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
-					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 - 10.f, -50 - 1 * y - 10.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
+					m_pBestText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f - m_pTimeText->GetWidth(), -50 - y - 13.f + 5.f));
+					m_pTimeText->Draw(Vector2f(10.f + m_pMap->GetWidth() / 2 - m_pTimeText->GetWidth() / 2 - 27.f, -50 - y - 13.f + 5.f));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 10.f, -50 - 1 * y - 10.f + 5.f), 26 + static_cast<int>(m_BestTime) % 10);
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 + 0.f, -50 - 1 * y - 10.f + 5.f), 26 + (static_cast<int>(m_BestTime) / 10 % 10));
+					m_pLetters->DrawSprite(Vector2f(10.f + m_pMap->GetWidth() / 2 - 10.f, -50 - 1 * y - 10.f + 5.f), 26 + (static_cast<int>(m_BestTime) / 100 % 10));
 
 				}
 				glPopMatrix();
@@ -787,7 +787,7 @@ void Game::Draw() const
 			{
 				glPushMatrix();
 				{
-					glScalef(0.63f,0.63f, 1.f);
+					glScalef(0.5f,0.5f, 1.f);
 					m_pTitleScreen->Draw(Vector2f(-m_pTitleScreen->GetWidth()/2, -m_pTitleScreen->GetHeight() / 2));
 				}
 				glPopMatrix();
@@ -1073,27 +1073,37 @@ void Game::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 		{
 			case(SDLK_F1):
 			{
-				m_pMap->SetHexMode(!m_pMap->IsHexMode());
+				m_pPlayer->ApplyBuff(Player::BuffType::hex, m_StatusTimerMax);
 				break;
 			}
 			case(SDLK_F2):
 			{
-				m_pMap->SetWrapMode(!m_pMap->IsWrapMode());
+				m_pPlayer->ApplyBuff(Player::BuffType::wrap, m_StatusTimerMax);
 				break;
 			}
 			case(SDLK_F3):
 			{
-				m_pMap->SetRevealedMode(!m_pMap->IsRevealed());
+				m_pPlayer->ApplyBuff(Player::BuffType::reveal, m_StatusTimerMax);
 				break;
 			}
 			case(SDLK_F4):
 			{
-				m_IsConfused = !m_IsConfused;
+				m_pPlayer->ClearBuff();
 				break;
 			}
 			case(SDLK_F5):
 			{
-				m_pMap->SetBlindMode(!m_pMap->IsBlindMode());
+				m_IsConfused = !m_IsConfused;
+				break;
+			}
+			case(SDLK_F6):
+			{
+				m_pPlayer->ApplyDebuff(m_StatusTimerMax);
+				break;
+			}
+			case(SDLK_F7):
+			{
+				m_pPlayer->ApplyDebuff(0.f);
 				break;
 			}
 			case(SDLK_i):
