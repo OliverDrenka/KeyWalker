@@ -33,7 +33,7 @@ const Vector2i Map::FindRandomNormalTile(const Vector2i playerpos)
 {
     const int cols = m_Grid->GetNumCols();
     const int rows = m_Grid->GetNumRows();
-    const int requiredDistance = 2;
+    const int requiredDistance = 3;
 
     auto squareDist = [&](const Vector2i& a, const Vector2i& b) -> int
     {
@@ -306,23 +306,52 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 						visible[pcy * numCols + pcx] = 1;
 				}
 			}
-			else
-			{
-				for (int dy = -2; dy <= 2; ++dy)
-				{
-					for (int dx = -2; dx <= 2; ++dx)
-					{
-						// exclude the four corner tiles where both offsets are ±2
-						if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
-						int cx = wrapX(pp.x + dx);
-						int cy = wrapY(pp.y + dy);
-						// when wrapping is disabled wrapX/wrapY return raw coords;
-						// skip out-of-bounds indices in that case to avoid invalid access
-						if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
-						visible[cy * numCols + cx] = 1;
-					}
-				}
-			}
+            else
+            {
+                // If player is blind but the map is revealed, use the original radius-2 square
+                // visibility (5x5 centered, excluding the 4 corner tiles at ±2). Otherwise use
+                // the newer radius-3 intersected with a Manhattan radius-4 to produce
+                // the 3,5,7,7,7,5,3 pattern.
+                if (m_IsBlind && m_IsRevealed)
+                {
+                    for (int dy = -2; dy <= 2; ++dy)
+                    {
+                        for (int dx = -2; dx <= 2; ++dx)
+                        {
+                            // exclude the four corner tiles where both offsets are ±2
+                            if (std::abs(dx) == 2 && std::abs(dy) == 2) continue;
+                            int cx = wrapX(pp.x + dx);
+                            int cy = wrapY(pp.y + dy);
+                            if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                            visible[cy * numCols + cx] = 1;
+                        }
+                    }
+                }
+                else
+                {
+                    // increase player square vision from radius 2 (5x5) to radius 3 (7x7)
+                    // but intersect (AND) it with a diamond (Manhattan) radius of 4 so the
+                    // final visible pattern per row becomes 3,5,7,7,7,5,3 when centered.
+                    for (int dy = -3; dy <= 3; ++dy)
+                    {
+                        for (int dx = -3; dx <= 3; ++dx)
+                        {
+                            // exclude the four corner tiles where both offsets are ±3 (keeps the square mask)
+                            if (std::abs(dx) == 3 && std::abs(dy) == 3) continue;
+
+                            // diamond (Manhattan) radius 4 check
+                            if ((std::abs(dx) + std::abs(dy)) > 4) continue;
+
+                            int cx = wrapX(pp.x + dx);
+                            int cy = wrapY(pp.y + dy);
+                            // when wrapping is disabled wrapX/wrapY return raw coords;
+                            // skip out-of-bounds indices in that case to avoid invalid access
+                            if (cx < 0 || cx >= numCols || cy < 0 || cy >= numRows) continue;
+                            visible[cy * numCols + cx] = 1;
+                        }
+                    }
+                }
+            }
 
 			// Expand visibility for any visible 'vision' tiles.
 			// Use a queue so vision tiles can cascade (vision tiles revealed by other vision tiles also expand).
@@ -336,13 +365,13 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 				}
 			}
 
-			while (!q.empty())
+            while (!q.empty())
 			{
 				Vector2i v = q.front(); q.pop_front();
-				for (int dy = -2; dy <= 2; ++dy)
-				{
-					for (int dx = -2; dx <= 2; ++dx)
-					{
+                for (int dy = -3; dy <= 3; ++dy)
+                {
+                    for (int dx = -3; dx <= 3; ++dx)
+                    {
 						int tx = v.x + dx;
 						int ty = v.y + dy;
 						int cx = wrapX(tx);
@@ -380,7 +409,7 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 				};
 
 			try_mark(pp.x, pp.y);
-			if (m_IsBlind && !(m_IsRevealed && !m_IsBlind))
+            if (m_IsBlind && !m_IsRevealed)
 			{
 				// Blind mode on hex: mark the six immediate hex neighbors (odd-r layout) and player
 				int col = pp.x;
@@ -408,14 +437,18 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 					try_mark(nx[i], ny[i]);
 				}
 			}
-			else
-			{
-				while (!q0.empty())
-				{
-					auto cur = q0.front(); q0.pop_front();
-					Vector2i pos = cur.first;
-					int depth = cur.second;
-					if (depth >= 2) continue;
+            else
+            {
+                // If player is blind but the map is revealed, use the original hex radius 2.
+                // Otherwise use radius 3 (new behavior).
+                const int maxDepth = (m_IsBlind && m_IsRevealed) ? 2 : 3;
+
+                while (!q0.empty())
+                {
+                    auto cur = q0.front(); q0.pop_front();
+                    Vector2i pos = cur.first;
+                    int depth = cur.second;
+                    if (depth >= maxDepth) continue;
 					int col = pos.x;
 					int row = pos.y;
 					bool odd = (row & 1) != 0;
@@ -474,12 +507,14 @@ void Map::Draw(Vector2f position, const Vector2i* pPlayerPosition)
 				qv.emplace_back(Vector2i(sx, sy), 0);
 				visited[sy * numCols + sx] = 1;
 				// seed is already marked visible by earlier code
-				while (!qv.empty())
-				{
-					auto cur = qv.front(); qv.pop_front();
-					Vector2i pos = cur.first;
-					int depth = cur.second;
-					if (depth >= 2) continue;
+                // Use same maxDepth logic as above: if blind+revealed use 2, else 3
+                const int seedMaxDepth = (m_IsBlind && m_IsRevealed) ? 2 : 3;
+                while (!qv.empty())
+                {
+                    auto cur = qv.front(); qv.pop_front();
+                    Vector2i pos = cur.first;
+                    int depth = cur.second;
+                    if (depth >= seedMaxDepth) continue;
 					int col = pos.x;
 					int row = pos.y;
 					bool odd = (row & 1) != 0;
